@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <title>Rubik solver</title>
+    <style>
+        body { margin: 0; }
+        canvas { width: 100%; height: 100% }
+        .buttons {
+          position: absolute;
+          bottom: 1rem;
+          left: 1rem;
+        }
+        #canvas {
+          display: flex
+        }
+    </style>
+  </head>
+  <body> 
+    <div id="canvas"></div>
+    <div class="buttons">
+        <button id="right">Rotate Right</button>
+        <button id="top">Rotate Top</button>
+        <button id="fromt">Rotate Front</button>
+    </div>    
+    <script src="js/three.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="js/index.js"></script>
+  </body>
+</html>
