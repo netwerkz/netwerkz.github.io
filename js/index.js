@@ -1,7 +1,11 @@
+// imports 
+const Vector3 = THREE.Vector3
+const Vector2 = THREE.Vector2
+const Quaternion = THREE.Quaternion
+
+// constants
 const RADIANS = Math.PI / 180
 const TURN = RADIANS * 90
-const Vector3 = THREE.Vector3
-const Quaternion = THREE.Quaternion
 const ORIGIN = new Vector3(0, 0, 0)
 const RIGHT = new Vector3(1, 0, 0)
 const LEFT = new Vector3(-1, 0, 0)
@@ -34,10 +38,12 @@ const materials = {
 // materials.WHITE.color.setHSL(hue, saturation, luminance);
 
 const state = {
+    speed: 10,
     axis: null,
     isMoving: false,
     hasReached: false,
-    t: 0.0
+    t: 0.0,
+    randomMoves: 0
 }
 
 const clock = new THREE.Clock();
@@ -54,6 +60,9 @@ renderer.gammaOutput = true
 const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
+document.querySelector('#randomize').addEventListener('click', function(e){
+    addToQueue(30)
+})
 
 let planeGeometry = new THREE.PlaneGeometry(1, 1);
 
@@ -177,7 +186,7 @@ orbit.addEventListener('change', render)
 
 animate()
 
-function rotate(axis, offset, direction) {
+function startRotation(axis, offset, direction) {
     if (state.isMoving) return
 
     state.isMoving = true
@@ -189,9 +198,9 @@ function rotate(axis, offset, direction) {
 }
 
 function animate() {
-    const speed = 4.0
+    
     const axis = state.axis
-    let dt = clock.getDelta() * speed
+    let dt = clock.getDelta() * state.speed
     if (axis) {
         state.t += dt
         if (state.t >= 1) {
@@ -207,6 +216,7 @@ function animate() {
             }
         }
 
+        // On move stop
         if (state.t >= 1 && state.isMoving) {
             state.axis = null
             state.isMoving = false
@@ -215,11 +225,48 @@ function animate() {
                 // correct rounding errors
                 piece.positionBeforeAnimation = piece.dynamicPosition.clone().round()
             }
+
+            onMoveEnd()
         }
     }
 
     requestAnimationFrame(animate)
     renderer.render(scene, camera)
+}
+
+function checkForMovesLeft() {
+    if(state.randomMoves) {        
+        state.randomMoves--
+        console.log('moves left ', state.randomMoves)
+        
+        let axis = null
+        const randAxis = Math.floor((Math.random() * 3) + 1)
+        switch(randAxis) {
+            case 1:
+                    axis = RIGHT
+            break;
+            case 2:
+                    axis = FRONT
+            break;
+            case 3:
+                    axis = UP
+            break;
+        }
+        
+        let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+        const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+        startRotation(axis, offset, direction)
+    }
+}
+
+function onMoveEnd() {
+    console.log('onMoveEnd')
+    checkForMovesLeft()
+}
+
+function addToQueue(moves) {
+    state.randomMoves += moves
+    checkForMovesLeft()
 }
 
 function onWindowResize() {
@@ -253,6 +300,7 @@ function render() {
         spriteRightCW.scale.x = 0.5
         spriteRightCW.scale.y = 0.5
         spriteRightCW.name = name+"_cw"
+        spriteRightCW.userData.isBtn = true
         buttons.add(spriteRightCW)
 
         const spriteMaterialCCW = new THREE.SpriteMaterial({ map: spriteMapCCW, color: 0xffffff })
@@ -263,6 +311,7 @@ function render() {
         spriteRightCCW.scale.x = 0.5
         spriteRightCCW.scale.y = 0.5
         spriteRightCCW.name = name+"_ccw"
+        spriteRightCCW.userData.isBtn = true
         buttons.add(spriteRightCCW)
 
         scene.add(buttons)
@@ -280,59 +329,61 @@ function render() {
             let res = intersects.filter( function ( res ) {
                 return res && res.object;
             } )[ 0 ];
-            if ( res && res.object ) {
+
+            if ( res && res.object && res.object.userData.isBtn ) {
                 selectedObject = res.object
                 selectedObject.material.color.set( '#ff0000' )
             }
         }
     }
     let raycaster = new THREE.Raycaster();
-    let mouseVector = new THREE.Vector3();
+    let mouseVector = new Vector2();
     function getIntersects( x, y ) {
         x = ( x / window.innerWidth ) * 2 - 1;
         y = - ( y / window.innerHeight ) * 2 + 1;
         mouseVector.set( x, y, 0.5 );
         raycaster.setFromCamera( mouseVector, camera );
-        return raycaster.intersectObject( buttons, true );
+        return raycaster.intersectObjects( buttons.children, true );
     }
+ 
     document.onclick = function(e) {
         if(selectedObject) {
             switch(selectedObject.name) {
                 case 'right_cw':
-                    rotate(RIGHT, 1, 1)
+                    startRotation(RIGHT, 1, 1)
                 break;
                 case 'right_ccw':
-                    rotate(RIGHT, 1, -1)
+                    startRotation(RIGHT, 1, -1)
                 break;
                 case 'left_cw':
-                    rotate(RIGHT, -1, 1)
+                    startRotation(RIGHT, -1, 1)
                 break;
                 case 'left_ccw':
-                    rotate(RIGHT, -1, -1)
+                    startRotation(RIGHT, -1, -1)
                 break;
                 case 'top_cw':
-                    rotate(UP, 1, 1)
+                    startRotation(UP, 1, 1)
                 break;
                 case 'top_ccw':
-                    rotate(UP, 1, -1)
+                    startRotation(UP, 1, -1)
                 break;
                 case 'bottom_cw':
-                    rotate(UP, -1, 1)
+                    startRotation(UP, -1, 1)
                 break;
                 case 'bottom_ccw':
-                    rotate(UP, -1, -1)
+                    startRotation(UP, -1, -1)
                 break;
                 case 'front_cw':
-                    rotate(FRONT, 1, 1)
+                    startRotation(FRONT, 1, 1)
                 break;
                 case 'front_ccw':
-                    rotate(FRONT, 1, -1)
+                    startRotation(FRONT, 1, -1)
                 break;
                 case 'back_cw':
-                    rotate(FRONT, -1, 1)
+                    startRotation(FRONT, -1, 1)
                 break;
                 case 'back_ccw':
-                    rotate(FRONT, -1, -1)
+                    startRotation(FRONT, -1, -1)
                 break;
             }
         }
