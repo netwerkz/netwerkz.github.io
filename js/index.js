@@ -37,6 +37,7 @@ const materials = {
 // const luminance = .5;
 // materials.WHITE.color.setHSL(hue, saturation, luminance);
 
+const CubeGrid = []
 const state = {
     speed: 10,
     axis: null,
@@ -44,6 +45,93 @@ const state = {
     hasReached: false,
     t: 0.0,
     randomMoves: 0
+}
+
+
+// class Face extends THREE.Mesh {
+//     constructor(piece, position, direction, mat) {
+//         super(planeGeometry, mat)
+//         this.position.x = position.x
+//         this.position.y = position.y
+//         this.position.z = position.z
+//         this.direction = direction
+
+//         if (this.direction.y != 0) {
+//             this.rotation.x = TURN
+//             this.position.y += this.position.y / 2.0
+//         }
+//         if (this.direction.z != 0) {
+//             this.position.z += this.position.z / 2.0
+//         }
+//         if (this.direction.x != 0) {
+//             this.rotation.y = TURN
+//             this.rotation.x = TURN
+//             this.position.x += this.position.x / 2.0
+//         }
+//     }
+// }
+
+class Piece extends THREE.Mesh {
+    constructor(geometry, position) {
+        super(geometry, materials.BLACK)
+        this.originalPosition = position.clone()
+        this.positionBeforeAnimation = position.clone()
+        this.dynamicPosition = position.clone()
+        this.geometry.translateX(position.x)
+        this.geometry.translateY(position.y)
+        this.geometry.translateZ(position.z)
+    }
+}
+let PieceGeometry = null
+
+function init() {
+    var loader = new THREE.GLTFLoader();
+    loader.load('models/Piece.glb', function (gltf) {
+        console.log('GLTF:', gltf)
+        PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
+        console.log(PieceGeometry)
+        // scene.add( gltf.scene );
+        // default cube configuration: white is up, red facing us
+        for (let x = -1; x <= 1; x++) {
+            for (let y = -1; y <= 1; y++) {
+                for (let z = -1; z <= 1; z++) {
+                    const position = new Vector3(x,y,z)
+                    const piece = PieceGeometry.clone()
+                    piece.originalPosition = position.clone()
+                    piece.positionBeforeAnimation = position.clone()
+                    piece.dynamicPosition = position.clone()
+                    piece.translateX(position.x)
+                    piece.translateY(position.y)
+                    piece.translateZ(position.z)
+
+                    // if (x == -1) { // left
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(-1, 0, 0), materials.GREEN))
+                    // }
+                    // if (x == 1) { // right
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(1, 0, 0), materials.BLUE))
+                    // }
+                    // if (z == 1) { // front
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, 1), materials.RED))
+                    // }
+                    // if (z == -1) { // back
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, -1), materials.ORANGE))
+                    // }
+                    // if (y == 1) { // up
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 1, 0), materials.WHITE))
+                    // }
+                    // if (y == -1) { // down
+                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, -1, 0), materials.YELLOW))
+                    // }
+                    CubeGrid.push(piece)
+                    scene.add(piece)
+                }
+            }
+        }
+        console.log(CubeGrid)
+
+    }, undefined, function (error) {
+        console.error(error)
+    })
 }
 
 const clock = new THREE.Clock();
@@ -60,7 +148,7 @@ renderer.gammaOutput = true
 const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
-document.querySelector('#randomize').addEventListener('click', function(e){
+document.querySelector('#randomize').addEventListener('click', function (e) {
     addToQueue(30)
 })
 
@@ -77,69 +165,6 @@ camera.position.x = 2.5
 camera.position.y = 3
 camera.position.z = 5
 
-class Face extends THREE.Mesh  {
-    constructor(piece, position, direction, mat) {
-        super(planeGeometry, mat)
-        this.position.x = position.x
-        this.position.y = position.y
-        this.position.z = position.z
-        this.direction = direction
-        
-        if (this.direction.y != 0) {
-            this.rotation.x = TURN
-            this.position.y += this.position.y / 2.0
-        }
-        if (this.direction.z != 0) {
-            this.position.z += this.position.z / 2.0
-        }
-        if (this.direction.x != 0) {
-            this.rotation.y = TURN
-            this.rotation.x = TURN
-            this.position.x += this.position.x / 2.0
-        }
-    }
-}
-
-class Piece extends THREE.Mesh {
-    constructor(position) {
-        super(new THREE.BoxGeometry(0.99, 0.99, 0.99), materials.BLACK)
-        this.originalPosition = position.clone()
-        this.positionBeforeAnimation = position.clone()
-        this.dynamicPosition = position.clone()
-        this.geometry.translate(position.x, position.y, position.z)
-    }
-}
-
-// default cube configuration: white is up, red facing us
-const CubeGrid = []
-for (let x = -1; x <= 1; x++) {
-    for (let y = -1; y <= 1; y++) {
-        for (let z = -1; z <= 1; z++) {
-            const piece = new Piece(new Vector3(x, y, z))
-            if (x == -1) { // left
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(-1, 0, 0), materials.GREEN))
-            }
-            if (x == 1) { // right
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(1, 0, 0), materials.BLUE))
-            }
-            if (z == 1) { // front
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, 1), materials.RED))
-            }
-            if (z == -1) { // back
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, -1), materials.ORANGE))
-            }
-            if (y == 1) { // up
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 1, 0), materials.WHITE))
-            }
-            if (y == -1) { // down
-                piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, -1, 0), materials.YELLOW))
-            }
-            CubeGrid.push(piece)
-            scene.add(piece)
-        }
-    }
-}
-console.log(CubeGrid)
 
 // Lights
 {
@@ -198,7 +223,6 @@ function startRotation(axis, offset, direction) {
 }
 
 function animate() {
-    
     const axis = state.axis
     let dt = clock.getDelta() * state.speed
     if (axis) {
@@ -211,8 +235,8 @@ function animate() {
             if ((axis.x && piece.positionBeforeAnimation.x == axis.x) ||
                 (axis.y && piece.positionBeforeAnimation.y == axis.y) ||
                 (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
-                    piece.rotateOnWorldAxis(axis, TURN * dt * -state.direction)
-                    piece.dynamicPosition.applyAxisAngle(axis, TURN * dt * -state.direction)
+                piece.rotateOnWorldAxis(axis, TURN * dt * -state.direction)
+                piece.dynamicPosition.applyAxisAngle(axis, TURN * dt * -state.direction)
             }
         }
 
@@ -235,24 +259,24 @@ function animate() {
 }
 
 function checkForMovesLeft() {
-    if(state.randomMoves) {        
+    if (state.randomMoves) {
         state.randomMoves--
         console.log('moves left ', state.randomMoves)
-        
+
         let axis = null
         const randAxis = Math.floor((Math.random() * 3) + 1)
-        switch(randAxis) {
+        switch (randAxis) {
             case 1:
-                    axis = RIGHT
-            break;
+                axis = RIGHT
+                break;
             case 2:
-                    axis = FRONT
-            break;
+                axis = FRONT
+                break;
             case 3:
-                    axis = UP
-            break;
+                axis = UP
+                break;
         }
-        
+
         let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
         const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
         startRotation(axis, offset, direction)
@@ -289,17 +313,17 @@ function render() {
     addButtons(new Vector3(0, -3, 0), 'bottom')
     addButtons(new Vector3(0, 0, 3), 'back')
     addButtons(new Vector3(0, 0, -3), 'front')
-    window.addEventListener( "mousemove", onDocumentMouseMove, false );
+    window.addEventListener("mousemove", onDocumentMouseMove, false);
 
     function addButtons(pos, name) {
-        const spriteMaterialCW = new THREE.SpriteMaterial({ map: spriteMapCW, color: 0xffffff })        
+        const spriteMaterialCW = new THREE.SpriteMaterial({ map: spriteMapCW, color: 0xffffff })
         const spriteRightCW = new THREE.Sprite(spriteMaterialCW)
         spriteRightCW.position.x = pos.x
         spriteRightCW.position.y = pos.y - 0.3
         spriteRightCW.position.z = pos.z
         spriteRightCW.scale.x = 0.5
         spriteRightCW.scale.y = 0.5
-        spriteRightCW.name = name+"_cw"
+        spriteRightCW.name = name + "_cw"
         spriteRightCW.userData.isBtn = true
         buttons.add(spriteRightCW)
 
@@ -310,7 +334,7 @@ function render() {
         spriteRightCCW.position.z = pos.z
         spriteRightCCW.scale.x = 0.5
         spriteRightCCW.scale.y = 0.5
-        spriteRightCCW.name = name+"_ccw"
+        spriteRightCCW.name = name + "_ccw"
         spriteRightCCW.userData.isBtn = true
         buttons.add(spriteRightCCW)
 
@@ -318,73 +342,73 @@ function render() {
     }
 
     let selectedObject = null;
-    function onDocumentMouseMove( event ) {
+    function onDocumentMouseMove(event) {
         event.preventDefault();
-        if ( selectedObject ) {
-            selectedObject.material.color.set( '#ffffff' )
+        if (selectedObject) {
+            selectedObject.material.color.set('#ffffff')
             selectedObject = null
         }
-        let intersects = getIntersects( event.layerX, event.layerY )
-        if ( intersects.length > 0 ) {
-            let res = intersects.filter( function ( res ) {
+        let intersects = getIntersects(event.layerX, event.layerY)
+        if (intersects.length > 0) {
+            let res = intersects.filter(function (res) {
                 return res && res.object;
-            } )[ 0 ];
+            })[0];
 
-            if ( res && res.object && res.object.userData.isBtn ) {
+            if (res && res.object && res.object.userData.isBtn) {
                 selectedObject = res.object
-                selectedObject.material.color.set( '#ff0000' )
+                selectedObject.material.color.set('#ff0000')
             }
         }
     }
     let raycaster = new THREE.Raycaster();
     let mouseVector = new Vector2();
-    function getIntersects( x, y ) {
-        x = ( x / window.innerWidth ) * 2 - 1;
-        y = - ( y / window.innerHeight ) * 2 + 1;
-        mouseVector.set( x, y, 0.5 );
-        raycaster.setFromCamera( mouseVector, camera );
-        return raycaster.intersectObjects( buttons.children, true );
+    function getIntersects(x, y) {
+        x = (x / window.innerWidth) * 2 - 1;
+        y = - (y / window.innerHeight) * 2 + 1;
+        mouseVector.set(x, y, 0.5);
+        raycaster.setFromCamera(mouseVector, camera);
+        return raycaster.intersectObjects(buttons.children, true);
     }
- 
-    document.onclick = function(e) {
-        if(selectedObject) {
-            switch(selectedObject.name) {
+
+    document.onclick = function (e) {
+        if (selectedObject) {
+            switch (selectedObject.name) {
                 case 'right_cw':
                     startRotation(RIGHT, 1, 1)
-                break;
+                    break;
                 case 'right_ccw':
                     startRotation(RIGHT, 1, -1)
-                break;
+                    break;
                 case 'left_cw':
                     startRotation(RIGHT, -1, 1)
-                break;
+                    break;
                 case 'left_ccw':
                     startRotation(RIGHT, -1, -1)
-                break;
+                    break;
                 case 'top_cw':
                     startRotation(UP, 1, 1)
-                break;
+                    break;
                 case 'top_ccw':
                     startRotation(UP, 1, -1)
-                break;
+                    break;
                 case 'bottom_cw':
                     startRotation(UP, -1, 1)
-                break;
+                    break;
                 case 'bottom_ccw':
                     startRotation(UP, -1, -1)
-                break;
+                    break;
                 case 'front_cw':
                     startRotation(FRONT, 1, 1)
-                break;
+                    break;
                 case 'front_ccw':
                     startRotation(FRONT, 1, -1)
-                break;
+                    break;
                 case 'back_cw':
                     startRotation(FRONT, -1, 1)
-                break;
+                    break;
                 case 'back_ccw':
                     startRotation(FRONT, -1, -1)
-                break;
+                    break;
             }
         }
     }
@@ -409,3 +433,5 @@ function makeLine(v1, v2, colorNormalized) {
     const line = new THREE.Line(geometry, mat)
     scene.add(line)
 }
+
+init()
