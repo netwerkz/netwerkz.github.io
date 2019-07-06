@@ -1,7 +1,37 @@
 // imports 
 const Vector3 = THREE.Vector3
 const Vector2 = THREE.Vector2
+const Color = THREE.Color
 const Quaternion = THREE.Quaternion
+
+const EasingFunctions = {
+    // no easing, no acceleration
+    linear: function (t) { return t },
+    // accelerating from zero velocity
+    easeInQuad: function (t) { return t*t },
+    // decelerating to zero velocity
+    easeOutQuad: function (t) { return t*(2-t) },
+    // acceleration until halfway, then deceleration
+    easeInOutQuad: function (t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t },
+    // accelerating from zero velocity
+    easeInCubic: function (t) { return t*t*t },
+    // decelerating to zero velocity
+    easeOutCubic: function (t) { return (--t)*t*t+1 },
+    // acceleration until halfway, then deceleration
+    easeInOutCubic: function (t) { return t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1 },
+    // accelerating from zero velocity
+    easeInQuart: function (t) { return t*t*t*t },
+    // decelerating to zero velocity
+    easeOutQuart: function (t) { return 1-(--t)*t*t*t },
+    // acceleration until halfway, then deceleration
+    easeInOutQuart: function (t) { return t<.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t },
+    // accelerating from zero velocity
+    easeInQuint: function (t) { return t*t*t*t*t },
+    // decelerating to zero velocity
+    easeOutQuint: function (t) { return 1+(--t)*t*t*t*t },
+    // acceleration until halfway, then deceleration
+    easeInOutQuint: function (t) { return t<.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t }
+}
 
 // constants
 const RADIANS = Math.PI / 180
@@ -23,6 +53,7 @@ const colors = {
     BLACK: 0x000000,
 }
 const materials = {
+    // TODO: MeshStandardMaterial
     RED: new THREE.MeshPhongMaterial({ color: colors.RED, side: THREE.DoubleSide }),
     GREEN: new THREE.MeshPhongMaterial({ color: colors.GREEN, side: THREE.DoubleSide }),
     BLUE: new THREE.MeshPhongMaterial({ color: colors.BLUE, side: THREE.DoubleSide }),
@@ -39,7 +70,7 @@ const materials = {
 
 const CubeGrid = []
 const state = {
-    speed: 10,
+    speed: 8,
     axis: null,
     isMoving: false,
     hasReached: false,
@@ -84,6 +115,10 @@ class Piece extends THREE.Mesh {
 }
 let PieceGeometry = null
 
+function setFaceColor(face, materialName, color) {
+
+}
+
 function init() {
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
@@ -100,28 +135,60 @@ function init() {
                     piece.originalPosition = position.clone()
                     piece.positionBeforeAnimation = position.clone()
                     piece.dynamicPosition = position.clone()
-                    piece.translateX(position.x)
-                    piece.translateY(position.y)
-                    piece.translateZ(position.z)
+                    
+                    for(let child of piece.children) {
+                        child.translateX(position.x*2)
+                        child.translateY(position.y*2)
+                        child.translateZ(position.z*2)
+                    }
+                    
+                    if (x == -1) { // left, green
+                        let leftFace = piece.children.find((el)=>el.material.name == 'LeftMat')
+                        leftFace.material = materials.GREEN
 
-                    // if (x == -1) { // left
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(-1, 0, 0), materials.GREEN))
-                    // }
-                    // if (x == 1) { // right
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(1, 0, 0), materials.BLUE))
-                    // }
-                    // if (z == 1) { // front
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, 1), materials.RED))
-                    // }
-                    // if (z == -1) { // back
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 0, -1), materials.ORANGE))
-                    // }
-                    // if (y == 1) { // up
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, 1, 0), materials.WHITE))
-                    // }
-                    // if (y == -1) { // down
-                    //     piece.attach(new Face(piece, new Vector3(x, y, z), new Vector3(0, -1, 0), materials.YELLOW))
-                    // }
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'RightMat')
+                        oppositeFace.material = materials.BLACK
+                    }
+
+                    if (x == 1) { // right, blue
+                        let leftFace = piece.children.find((el)=>el.material.name == 'RightMat')
+                        leftFace.material = materials.BLUE
+
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'LeftMat')
+                        oppositeFace.material = materials.BLACK
+                    }
+
+                    if (z == 1) { // front, red
+                        let leftFace = piece.children.find((el)=>el.material.name == 'FrontMat')
+                        leftFace.material = materials.RED
+
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'BackMat')
+                        oppositeFace.material = materials.BLACK
+                    }
+
+                    if (z == -1) { // back, orange
+                        let leftFace = piece.children.find((el)=>el.material.name == 'BackMat')
+                        leftFace.material = materials.ORANGE
+
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'FrontMat')
+                        oppositeFace.material = materials.BLACK
+                    }
+
+                    if (y == 1) { // top, white
+                        let leftFace = piece.children.find((el)=>el.material.name == 'TopMat')
+                        leftFace.material = materials.WHITE
+
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'BottomMat')
+                        oppositeFace.material = materials.BLACK
+                    }
+
+                    if (y == -1) { // bottom, yellow
+                        let leftFace = piece.children.find((el)=>el.material.name == 'BottomMat')
+                        leftFace.material = materials.YELLOW
+
+                        let oppositeFace = piece.children.find((el)=>el.material.name == 'TopMat')
+                        oppositeFace.material = materials.BLACK
+                    }
                     CubeGrid.push(piece)
                     scene.add(piece)
                 }
@@ -258,29 +325,34 @@ function animate() {
     renderer.render(scene, camera)
 }
 
-function checkForMovesLeft() {
+function checkForMovesLeft() { 
     if (state.randomMoves) {
-        state.randomMoves--
-        console.log('moves left ', state.randomMoves)
-
-        let axis = null
-        const randAxis = Math.floor((Math.random() * 3) + 1)
-        switch (randAxis) {
-            case 1:
-                axis = RIGHT
-                break;
-            case 2:
-                axis = FRONT
-                break;
-            case 3:
-                axis = UP
-                break;
-        }
-
-        let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-        const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-        startRotation(axis, offset, direction)
+        makeRandomMove()        
     }
+}
+
+function makeRandomMove()
+{
+    state.randomMoves--
+    console.log('moves left ', state.randomMoves)
+
+    let axis = null
+    const randAxis = Math.floor((Math.random() * 3) + 1)
+    switch (randAxis) {
+        case 1:
+            axis = RIGHT
+            break;
+        case 2:
+            axis = FRONT
+            break;
+        case 3:
+            axis = UP
+            break;
+    }
+
+    let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+    const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+    startRotation(axis, offset, direction)
 }
 
 function onMoveEnd() {
@@ -433,5 +505,7 @@ function makeLine(v1, v2, colorNormalized) {
     const line = new THREE.Line(geometry, mat)
     scene.add(line)
 }
+
+
 
 init()
