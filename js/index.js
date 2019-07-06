@@ -33,7 +33,6 @@ const materials = {
     ORANGE: new THREE.MeshPhongMaterial({ color: colors.ORANGE, side: THREE.DoubleSide }),
     BLACK: new THREE.MeshPhongMaterial({ color: colors.BLACK, side: THREE.DoubleSide }),
 }
-
 const state = {
     grid:  [],
     speed: 8,
@@ -41,6 +40,23 @@ const state = {
     isMoving: false,
     t: 0.0,
     randomMoves: 0,    
+}
+
+const COMPLETION_PHASE = {
+    NONE: 0,
+    WHITE_CROSS_1: 1,
+    WHITE_CROSS_2: 2,
+    WHITE_CROSS_3: 3,
+    WHITE_CROSS_4: 4,
+    T_1: 2,
+    T_2: 2,
+    T_3: 2,
+    T_4: 2,
+    SECOND_LAYER_1: 3, // if wrong orientation, do it twice
+    SECOND_LAYER_2: 3, // if wrong orientation, do it twice
+    SECOND_LAYER_3: 3, // if wrong orientation, do it twice
+    SECOND_LAYER_4: 3, // if wrong orientation, do it twice
+
 }
 
 class Piece extends THREE.Mesh {
@@ -216,6 +232,7 @@ animate()
 
 function startRotation(axis, offset, direction) {
     if (state.isMoving) return
+    console.log('startRotation: ', axis, offset, direction)
 
     state.isMoving = true
     state.axis = axis.clone()
@@ -223,6 +240,11 @@ function startRotation(axis, offset, direction) {
     state.t = 0.0
     state.direction = direction
     state.offset = offset
+
+    const index = Math.floor((Math.random() * 6) + 1)
+    const filename = 'sounds/rubik-0'+index+'.wav'
+    const audio = new Audio(filename)
+    audio.play()
 }
 
 function animate() {
