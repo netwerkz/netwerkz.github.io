@@ -4,35 +4,6 @@ const Vector2 = THREE.Vector2
 const Color = THREE.Color
 const Quaternion = THREE.Quaternion
 
-const EasingFunctions = {
-    // no easing, no acceleration
-    linear: function (t) { return t },
-    // accelerating from zero velocity
-    easeInQuad: function (t) { return t*t },
-    // decelerating to zero velocity
-    easeOutQuad: function (t) { return t*(2-t) },
-    // acceleration until halfway, then deceleration
-    easeInOutQuad: function (t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t },
-    // accelerating from zero velocity
-    easeInCubic: function (t) { return t*t*t },
-    // decelerating to zero velocity
-    easeOutCubic: function (t) { return (--t)*t*t+1 },
-    // acceleration until halfway, then deceleration
-    easeInOutCubic: function (t) { return t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1 },
-    // accelerating from zero velocity
-    easeInQuart: function (t) { return t*t*t*t },
-    // decelerating to zero velocity
-    easeOutQuart: function (t) { return 1-(--t)*t*t*t },
-    // acceleration until halfway, then deceleration
-    easeInOutQuart: function (t) { return t<.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t },
-    // accelerating from zero velocity
-    easeInQuint: function (t) { return t*t*t*t*t },
-    // decelerating to zero velocity
-    easeOutQuint: function (t) { return 1+(--t)*t*t*t*t },
-    // acceleration until halfway, then deceleration
-    easeInOutQuint: function (t) { return t<.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t }
-}
-
 // constants
 const RADIANS = Math.PI / 180
 const TURN = RADIANS * 90
@@ -63,44 +34,14 @@ const materials = {
     BLACK: new THREE.MeshPhongMaterial({ color: colors.BLACK, side: THREE.DoubleSide }),
 }
 
-// const hue = Math.random();
-// const saturation = 1;
-// const luminance = .5;
-// materials.WHITE.color.setHSL(hue, saturation, luminance);
-
-const CubeGrid = []
 const state = {
+    grid:  [],
     speed: 8,
     axis: null,
     isMoving: false,
-    hasReached: false,
     t: 0.0,
-    randomMoves: 0
+    randomMoves: 0,    
 }
-
-
-// class Face extends THREE.Mesh {
-//     constructor(piece, position, direction, mat) {
-//         super(planeGeometry, mat)
-//         this.position.x = position.x
-//         this.position.y = position.y
-//         this.position.z = position.z
-//         this.direction = direction
-
-//         if (this.direction.y != 0) {
-//             this.rotation.x = TURN
-//             this.position.y += this.position.y / 2.0
-//         }
-//         if (this.direction.z != 0) {
-//             this.position.z += this.position.z / 2.0
-//         }
-//         if (this.direction.x != 0) {
-//             this.rotation.y = TURN
-//             this.rotation.x = TURN
-//             this.position.x += this.position.x / 2.0
-//         }
-//     }
-// }
 
 class Piece extends THREE.Mesh {
     constructor(geometry, position) {
@@ -113,17 +54,12 @@ class Piece extends THREE.Mesh {
         this.geometry.translateZ(position.z)
     }
 }
-let PieceGeometry = null
-
-function setFaceColor(face, materialName, color) {
-
-}
 
 function init() {
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
         console.log('GLTF:', gltf)
-        PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
+        const PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
         console.log(PieceGeometry)
         // scene.add( gltf.scene );
         // default cube configuration: white is up, red facing us
@@ -189,12 +125,12 @@ function init() {
                         let oppositeFace = piece.children.find((el)=>el.material.name == 'TopMat')
                         oppositeFace.material = materials.BLACK
                     }
-                    CubeGrid.push(piece)
+                    state.grid.push(piece)
                     scene.add(piece)
                 }
             }
         }
-        console.log(CubeGrid)
+        console.log(state.grid)
 
     }, undefined, function (error) {
         console.error(error)
@@ -216,12 +152,13 @@ const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) {
-    addToQueue(30)
+    addMovesToQueue(30)
+})
+document.querySelector('#solve').addEventListener('click', function (e) {
+    console.log('solve')
 })
 
-let planeGeometry = new THREE.PlaneGeometry(1, 1);
-
-{ // make axis
+{ // make 3D axis
     const length = 100
     makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
     makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
@@ -231,7 +168,6 @@ let planeGeometry = new THREE.PlaneGeometry(1, 1);
 camera.position.x = 2.5
 camera.position.y = 3
 camera.position.z = 5
-
 
 // Lights
 {
@@ -298,7 +234,7 @@ function animate() {
             dt -= state.t - 1.0
         }
 
-        for (const piece of CubeGrid) {
+        for (const piece of state.grid) {
             if ((axis.x && piece.positionBeforeAnimation.x == axis.x) ||
                 (axis.y && piece.positionBeforeAnimation.y == axis.y) ||
                 (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
@@ -312,7 +248,7 @@ function animate() {
             state.axis = null
             state.isMoving = false
 
-            for (const piece of CubeGrid) {
+            for (const piece of state.grid) {
                 // correct rounding errors
                 piece.positionBeforeAnimation = piece.dynamicPosition.clone().round()
             }
@@ -360,7 +296,7 @@ function onMoveEnd() {
     checkForMovesLeft()
 }
 
-function addToQueue(moves) {
+function addMovesToQueue(moves) {
     state.randomMoves += moves
     checkForMovesLeft()
 }
@@ -506,6 +442,33 @@ function makeLine(v1, v2, colorNormalized) {
     scene.add(line)
 }
 
-
+// const EasingFunctions = {
+//     // no easing, no acceleration
+//     linear: function (t) { return t },
+//     // accelerating from zero velocity
+//     easeInQuad: function (t) { return t*t },
+//     // decelerating to zero velocity
+//     easeOutQuad: function (t) { return t*(2-t) },
+//     // acceleration until halfway, then deceleration
+//     easeInOutQuad: function (t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t },
+//     // accelerating from zero velocity
+//     easeInCubic: function (t) { return t*t*t },
+//     // decelerating to zero velocity
+//     easeOutCubic: function (t) { return (--t)*t*t+1 },
+//     // acceleration until halfway, then deceleration
+//     easeInOutCubic: function (t) { return t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1 },
+//     // accelerating from zero velocity
+//     easeInQuart: function (t) { return t*t*t*t },
+//     // decelerating to zero velocity
+//     easeOutQuart: function (t) { return 1-(--t)*t*t*t },
+//     // acceleration until halfway, then deceleration
+//     easeInOutQuart: function (t) { return t<.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t },
+//     // accelerating from zero velocity
+//     easeInQuint: function (t) { return t*t*t*t*t },
+//     // decelerating to zero velocity
+//     easeOutQuint: function (t) { return 1+(--t)*t*t*t*t },
+//     // acceleration until halfway, then deceleration
+//     easeInOutQuint: function (t) { return t<.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t }
+// }
 
 init()
