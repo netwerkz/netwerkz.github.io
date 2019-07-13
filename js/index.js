@@ -14,7 +14,7 @@ const UP = new Vector3(0, 1, 0)
 const DOWN = new Vector3(0, -1, 0)
 const FRONT = new Vector3(0, 0, -1)
 const BACK = new Vector3(0, 0, 1)
-const colors = {
+const colorsHexa = {
     RED: 0xff0000,
     GREEN: 0x00aa00,
     BLUE: 0x0033dd,
@@ -25,13 +25,13 @@ const colors = {
 }
 const materials = {
     // TODO: MeshStandardMaterial
-    RED: new THREE.MeshPhongMaterial({ color: colors.RED, side: THREE.DoubleSide }),
-    GREEN: new THREE.MeshPhongMaterial({ color: colors.GREEN, side: THREE.DoubleSide }),
-    BLUE: new THREE.MeshPhongMaterial({ color: colors.BLUE, side: THREE.DoubleSide }),
-    WHITE: new THREE.MeshPhongMaterial({ color: colors.WHITE, side: THREE.DoubleSide }),
-    YELLOW: new THREE.MeshPhongMaterial({ color: colors.YELLOW, side: THREE.DoubleSide }),
-    ORANGE: new THREE.MeshPhongMaterial({ color: colors.ORANGE, side: THREE.DoubleSide }),
-    BLACK: new THREE.MeshPhongMaterial({ color: colors.BLACK, side: THREE.DoubleSide }),
+    RED: new THREE.MeshPhongMaterial({ color: colorsHexa.RED, side: THREE.FrontSide }),
+    GREEN: new THREE.MeshPhongMaterial({ color: colorsHexa.GREEN, side: THREE.FrontSide }),
+    BLUE: new THREE.MeshPhongMaterial({ color: colorsHexa.BLUE, side: THREE.FrontSide }),
+    WHITE: new THREE.MeshPhongMaterial({ color: colorsHexa.WHITE, side: THREE.FrontSide }),
+    YELLOW: new THREE.MeshPhongMaterial({ color: colorsHexa.YELLOW, side: THREE.FrontSide }),
+    ORANGE: new THREE.MeshPhongMaterial({ color: colorsHexa.ORANGE, side: THREE.FrontSide }),
+    BLACK: new THREE.MeshPhongMaterial({ color: colorsHexa.BLACK, side: THREE.FrontSide }),
 }
 const state = {
     grid:  [],
@@ -42,7 +42,7 @@ const state = {
     randomMoves: 0,    
 }
 
-const COMPLETION_PHASE = {
+const SOLVER_PHASE = {
     NONE: 0,
     WHITE_CROSS_1: 1,
     WHITE_CROSS_2: 2,
@@ -56,7 +56,16 @@ const COMPLETION_PHASE = {
     SECOND_LAYER_2: 3, // if wrong orientation, do it twice
     SECOND_LAYER_3: 3, // if wrong orientation, do it twice
     SECOND_LAYER_4: 3, // if wrong orientation, do it twice
-
+    YELLOW_CROSS_1: 1, // may be skipped
+    YELLOW_CROSS_2: 1, // may be skipped
+    YELLOW_CROSS_3: 1, // may be skipped
+    YELLOW_CROSS_4: 1,
+    YELLOW_EDGES_1: 1, // may be skipped
+    YELLOW_EDGES_2: 1, // may be skipped
+    YELLOW_EDGES_3: 1, // may be skipped
+    YELLOW_EDGES_4: 1,
+    
+    // ...
 }
 
 class Piece extends THREE.Mesh {
@@ -94,63 +103,49 @@ function init() {
                         child.translateZ(position.z*2)
                     }
                     
+                    // clear all materials to black color
+                    piece.children.map(material => material.material.color = new Color(0,0,0))
+                    
                     if (x == -1) { // left, green
                         let leftFace = piece.children.find((el)=>el.material.name == 'LeftMat')
                         leftFace.material = materials.GREEN
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'RightMat')
-                        oppositeFace.material = materials.BLACK
                     }
-
                     if (x == 1) { // right, blue
                         let leftFace = piece.children.find((el)=>el.material.name == 'RightMat')
                         leftFace.material = materials.BLUE
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'LeftMat')
-                        oppositeFace.material = materials.BLACK
                     }
-
                     if (z == 1) { // front, red
                         let leftFace = piece.children.find((el)=>el.material.name == 'FrontMat')
                         leftFace.material = materials.RED
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'BackMat')
-                        oppositeFace.material = materials.BLACK
                     }
-
                     if (z == -1) { // back, orange
                         let leftFace = piece.children.find((el)=>el.material.name == 'BackMat')
                         leftFace.material = materials.ORANGE
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'FrontMat')
-                        oppositeFace.material = materials.BLACK
                     }
-
                     if (y == 1) { // top, white
                         let leftFace = piece.children.find((el)=>el.material.name == 'TopMat')
                         leftFace.material = materials.WHITE
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'BottomMat')
-                        oppositeFace.material = materials.BLACK
                     }
-
                     if (y == -1) { // bottom, yellow
                         let leftFace = piece.children.find((el)=>el.material.name == 'BottomMat')
                         leftFace.material = materials.YELLOW
-
-                        let oppositeFace = piece.children.find((el)=>el.material.name == 'TopMat')
-                        oppositeFace.material = materials.BLACK
                     }
                     state.grid.push(piece)
                     scene.add(piece)
                 }
             }
         }
-        console.log(state.grid)
+        console.log('grid',state.grid)
 
     }, undefined, function (error) {
         console.error(error)
     })
+}
+
+
+function isCubeSolved() {
+
+    return true
 }
 
 const clock = new THREE.Clock();
@@ -241,8 +236,9 @@ function startRotation(axis, offset, direction) {
     state.direction = direction
     state.offset = offset
 
-    const index = Math.floor((Math.random() * 6) + 1)
-    const filename = 'sounds/rubik-0'+index+'.wav'
+    // play a sound
+    const i = Math.floor((Math.random() * 6) + 1)
+    const filename = 'sounds/rubik-0'+i+'.wav'
     const audio = new Audio(filename)
     audio.play()
 }
