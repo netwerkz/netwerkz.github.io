@@ -14,6 +14,7 @@ const UP = new Vector3(0, 1, 0)
 const DOWN = new Vector3(0, -1, 0)
 const FRONT = new Vector3(0, 0, -1)
 const BACK = new Vector3(0, 0, 1)
+const FACE_COLORS = ['RED', 'ORANGE', 'GREEN', 'BLUE', 'WHITE', 'YELLOW']
 const colorsHexa = {
     RED: 0xff0000,
     GREEN: 0x00aa00,
@@ -68,18 +69,6 @@ const SOLVER_PHASE = {
     // ...
 }
 
-class Piece extends THREE.Mesh {
-    constructor(geometry, position) {
-        super(geometry, materials.BLACK)
-        this.originalPosition = position.clone()
-        this.positionBeforeAnimation = position.clone()
-        this.dynamicPosition = position.clone()
-        this.geometry.translateX(position.x)
-        this.geometry.translateY(position.y)
-        this.geometry.translateZ(position.z)
-    }
-}
-
 function init() {
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
@@ -91,44 +80,52 @@ function init() {
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
                 for (let z = -1; z <= 1; z++) {
+                    if(x == 0 && y == 0 && z == 0) continue
+
                     const position = new Vector3(x,y,z)
                     const piece = PieceGeometry.clone()
                     piece.originalPosition = position.clone()
                     piece.positionBeforeAnimation = position.clone()
                     piece.dynamicPosition = position.clone()
+                    piece.name = `${position.x},${position.y},${position.z}`
                     
                     for(let child of piece.children) {
                         child.translateX(position.x*2)
                         child.translateY(position.y*2)
                         child.translateZ(position.z*2)
                     }
-                    
                     // clear all materials to black color
-                    piece.children.map(material => material.material.color = new Color(0,0,0))
+                    piece.children.map(material => material.material.color = new Color(colorsHexa.BLACK))
                     
                     if (x == -1) { // left, green
-                        let leftFace = piece.children.find((el)=>el.material.name == 'LeftMat')
-                        leftFace.material = materials.GREEN
+                        let face = piece.children.find((el)=>el.material.name == 'LeftMat')
+                        face.material = materials.GREEN
+                        piece.userData.GREEN = LEFT.clone()
                     }
                     if (x == 1) { // right, blue
-                        let leftFace = piece.children.find((el)=>el.material.name == 'RightMat')
-                        leftFace.material = materials.BLUE
+                        let face = piece.children.find((el)=>el.material.name == 'RightMat')
+                        face.material = materials.BLUE
+                        piece.userData.BLUE = RIGHT.clone()
                     }
                     if (z == 1) { // front, red
-                        let leftFace = piece.children.find((el)=>el.material.name == 'FrontMat')
-                        leftFace.material = materials.RED
+                        let face = piece.children.find((el)=>el.material.name == 'FrontMat')
+                        face.material = materials.RED
+                        piece.userData.RED = FRONT.clone()
                     }
                     if (z == -1) { // back, orange
-                        let leftFace = piece.children.find((el)=>el.material.name == 'BackMat')
-                        leftFace.material = materials.ORANGE
+                        let face = piece.children.find((el)=>el.material.name == 'BackMat')
+                        face.material = materials.ORANGE
+                        piece.userData.ORANGE = BACK.clone()
                     }
                     if (y == 1) { // top, white
-                        let leftFace = piece.children.find((el)=>el.material.name == 'TopMat')
-                        leftFace.material = materials.WHITE
+                        let face = piece.children.find((el)=>el.material.name == 'TopMat')
+                        face.material = materials.WHITE
+                        piece.userData.WHITE = UP.clone()
                     }
                     if (y == -1) { // bottom, yellow
-                        let leftFace = piece.children.find((el)=>el.material.name == 'BottomMat')
-                        leftFace.material = materials.YELLOW
+                        let face = piece.children.find((el)=>el.material.name == 'BottomMat')
+                        face.material = materials.YELLOW
+                        piece.userData.YELLOW = DOWN.clone()
                     }
                     state.grid.push(piece)
                     scene.add(piece)
@@ -142,9 +139,24 @@ function init() {
     })
 }
 
-
 function isCubeSolved() {
-
+    const faces = {}
+    for (const piece of state.grid) {        
+        for(const faceColor of FACE_COLORS) {
+            if(piece.userData[faceColor]) {
+                 // init cache:
+                if(!faces[faceColor]) {
+                    faces[faceColor] = piece.userData[faceColor].clone()
+                }
+                
+                // compare with cache:
+                if (!faces[faceColor].equals(piece.userData[faceColor])) {
+                    return false
+                }
+            }
+        }
+    }
+    
     return true
 }
 
@@ -178,7 +190,7 @@ document.querySelector('#solve').addEventListener('click', function (e) {
 
 camera.position.x = 2.5
 camera.position.y = 3
-camera.position.z = 5
+camera.position.z = 6
 
 // Lights
 {
@@ -263,14 +275,23 @@ function animate() {
 
         // On move stop
         if (state.t >= 1 && state.isMoving) {
-            state.axis = null
-            state.isMoving = false
-
-            for (const piece of state.grid) {
+            console.log('==== stopping ====')
+            for (let piece of state.grid) {
                 // correct rounding errors
                 piece.positionBeforeAnimation = piece.dynamicPosition.clone().round()
+                if ((axis.x && piece.positionBeforeAnimation.x == axis.x) || 
+                    (axis.y && piece.positionBeforeAnimation.y == axis.y) || 
+                    (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
+                    for(const faceColor of FACE_COLORS) {
+                        if(piece.userData[faceColor]) {
+                            piece.userData[faceColor].applyAxisAngle(axis, TURN * -state.direction).round()
+                        }
+                    }
+                }
             }
 
+            state.axis = null
+            state.isMoving = false
             onMoveEnd()
         }
     }
@@ -312,6 +333,7 @@ function makeRandomMove()
 function onMoveEnd() {
     console.log('onMoveEnd')
     checkForMovesLeft()
+    console.log(isCubeSolved())
 }
 
 function addMovesToQueue(moves) {
@@ -330,8 +352,8 @@ function render() {
 }
 
 {
-    const spriteMapCW = new THREE.TextureLoader().load("cw.png");
-    const spriteMapCCW = new THREE.TextureLoader().load("ccw.png");
+    const spriteMapCW = new THREE.TextureLoader().load("images/cw.png");
+    const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png");
     const buttons = new THREE.Group()
     addButtons(new Vector3(3, 0, 0), 'right')
     addButtons(new Vector3(-3, 0, 0), 'left')
