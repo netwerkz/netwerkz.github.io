@@ -35,15 +35,17 @@ const materials = {
     BLACK: new THREE.MeshPhongMaterial({ color: colorsHexa.BLACK, side: THREE.FrontSide }),
 }
 
-/**
- * @param {Vector3} axis normalized
- * @param {int} offset -1/+1
- * @param {int} direction -1/+1
- */
-const Move = function(axis, offset, direction) {
-    this.axis = axis.clone()    
-    this.offset = offset
-    this.direction = direction
+class Move {
+    /**
+     * @param {Vector3} axis normalized
+     * @param {int} offset -1/+1
+     * @param {int} direction -1/+1
+     */
+    constructor(axis, offset, direction) {
+        this.axis = axis.clone();
+        this.offset = offset;
+        this.direction = direction;
+    }
 }
 
 const STATE = {
@@ -87,6 +89,182 @@ const SOLVER_PHASE = {
 }
 
 function init() {
+    { // setup buttons    
+        const spriteMapCW = new THREE.TextureLoader().load("images/cw.png");
+        const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png");
+        const buttons = new THREE.Group()
+        addButtons(new Vector3(3, 0, 0), 'right')
+        addButtons(new Vector3(-3, 0, 0), 'left')
+        addButtons(new Vector3(0, 3, 0), 'top')
+        addButtons(new Vector3(0, -3, 0), 'bottom')
+        addButtons(new Vector3(0, 0, 3), 'back')
+        addButtons(new Vector3(0, 0, -3), 'front')
+        window.addEventListener("mousemove", onDocumentMouseMove, false);
+    
+        function addButtons(pos, name) {
+            const spriteMaterialCW = new THREE.SpriteMaterial({ map: spriteMapCW, color: 0xffffff })
+            const spriteRightCW = new THREE.Sprite(spriteMaterialCW)
+            spriteRightCW.position.x = pos.x
+            spriteRightCW.position.y = pos.y - 0.3
+            spriteRightCW.position.z = pos.z
+            spriteRightCW.scale.x = 0.5
+            spriteRightCW.scale.y = 0.5
+            spriteRightCW.name = name + "_cw"
+            spriteRightCW.userData.isBtn = true
+            buttons.add(spriteRightCW)
+    
+            const spriteMaterialCCW = new THREE.SpriteMaterial({ map: spriteMapCCW, color: 0xffffff })
+            const spriteRightCCW = new THREE.Sprite(spriteMaterialCCW)
+            spriteRightCCW.position.x = pos.x
+            spriteRightCCW.position.y = pos.y + 0.3
+            spriteRightCCW.position.z = pos.z
+            spriteRightCCW.scale.x = 0.5
+            spriteRightCCW.scale.y = 0.5
+            spriteRightCCW.name = name + "_ccw"
+            spriteRightCCW.userData.isBtn = true
+            buttons.add(spriteRightCCW)
+    
+            scene.add(buttons)
+        }
+    
+        let selectedObject = null;
+        function onDocumentMouseMove(event) {
+            event.preventDefault();
+            if (selectedObject) {
+                selectedObject.material.color.set('#ffffff')
+                selectedObject = null
+            }
+            let intersects = getIntersects(event.layerX, event.layerY)
+            if (intersects.length > 0) {
+                let res = intersects.filter(function (res) {
+                    return res && res.object;
+                })[0];
+    
+                if (res && res.object && res.object.userData.isBtn) {
+                    selectedObject = res.object
+                    selectedObject.material.color.set('#ff0000')
+                }
+            }
+        }
+        let raycaster = new THREE.Raycaster();
+        let mouseVector = new Vector2();
+        function getIntersects(x, y) {
+            x = (x / window.innerWidth) * 2 - 1;
+            y = - (y / window.innerHeight) * 2 + 1;
+            mouseVector.set(x, y, 0.5);
+            raycaster.setFromCamera(mouseVector, camera);
+            return raycaster.intersectObjects(buttons.children, true);
+        }
+    
+        document.onclick = function (e) {
+            if (selectedObject) {
+                switch (selectedObject.name) {
+                    case 'right_cw':
+                        startRotation(new Move(RIGHT, 1, 1))
+                        break;
+                    case 'right_ccw':
+                        startRotation(new Move(RIGHT, 1, -1))
+                        break;
+                    case 'left_cw':
+                        startRotation(new Move(RIGHT, -1, 1))
+                        break;
+                    case 'left_ccw':
+                        startRotation(new Move(RIGHT, -1, -1))
+                        break;
+                    case 'top_cw':
+                        startRotation(new Move(UP, 1, 1))
+                        break;
+                    case 'top_ccw':
+                        startRotation(new Move(UP, 1, -1))
+                        break;
+                    case 'bottom_cw':
+                        startRotation(new Move(UP, -1, 1))
+                        break;
+                    case 'bottom_ccw':
+                        startRotation(new Move(UP, -1, -1))
+                        break;
+                    case 'front_cw':
+                        startRotation(new Move(FRONT, 1, 1))
+                        break;
+                    case 'front_ccw':
+                        startRotation(new Move(FRONT, 1, -1))
+                        break;
+                    case 'back_cw':
+                        startRotation(new Move(FRONT, -1, 1))
+                        break;
+                    case 'back_ccw':
+                        startRotation(new Move(FRONT, -1, -1))
+                        break;
+                }
+            }
+        }
+    }
+
+    { // make 3D axis
+        const length = 100
+        makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
+        makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
+        makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
+
+        function makeLine(v1, v2, colorNormalized) {
+            const geometry = new THREE.BufferGeometry()
+            const mat = new THREE.LineBasicMaterial({ vertexColors: THREE.VertexColors })
+            const vertexPosition = []
+            const vertexColor = []
+            vertexPosition.push(v1.x, v1.y, v1.z)
+            vertexColor.push(colorNormalized.x)
+            vertexColor.push(colorNormalized.y)
+            vertexColor.push(colorNormalized.z)
+            vertexPosition.push(v2.x, v2.y, v2.z)
+            vertexColor.push(colorNormalized.x)
+            vertexColor.push(colorNormalized.y)
+            vertexColor.push(colorNormalized.z)
+            geometry.addAttribute('position', new THREE.Float32BufferAttribute(vertexPosition, 3));
+            geometry.addAttribute('color', new THREE.Float32BufferAttribute(vertexColor, 3));
+            geometry.computeBoundingSphere();
+            const line = new THREE.Line(geometry, mat)
+            scene.add(line)
+        }
+    }
+    
+    // Lights
+    {
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.9);
+        hemiLight.color.setHSL(0.6, 1, 1);
+        hemiLight.groundColor.setHSL(0.095, 1, 0.75);
+        hemiLight.position.set(0, 50, 0);
+        scene.add(hemiLight);
+    
+        // const dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
+        // dirLight.color.setHSL( 0.1, 1, 0.95 );
+        // dirLight.position.set( - 1, 1.75, 1 );
+        // dirLight.position.multiplyScalar( 30 );
+        // scene.add( dirLight );
+        // dirLight.castShadow = true;
+        // dirLight.shadow.mapSize.width = 2048;
+        // dirLight.shadow.mapSize.height = 2048;
+        // let d = 50;
+        // dirLight.shadow.camera.left = - d;
+        // dirLight.shadow.camera.right = d;
+        // dirLight.shadow.camera.top = d;
+        // dirLight.shadow.camera.bottom = - d;
+        // dirLight.shadow.camera.far = 3500;
+        // dirLight.shadow.bias = - 0.0001;
+    }
+    {
+        const intensity = 1;
+        const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
+        light.position.set(-1, 2, 4);
+        scene.add(light);
+    }
+    {
+        const intensity = 1;
+        const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
+        light.position.set(1, -2, -4);
+        scene.add(light);
+    }
+    
+    
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
         const PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
@@ -147,6 +325,7 @@ function init() {
                 }
             }
         }
+        animate()
         doNextMove()
     }, undefined, function (error) {
         console.error(error)
@@ -185,52 +364,6 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.currently = STATE.SOLVE
     doNextMove()
 })
-
-{ // make 3D axis
-    const length = 100
-    makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
-    makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
-    makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
-}
-
-// Lights
-{
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.9);
-    hemiLight.color.setHSL(0.6, 1, 1);
-    hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-    hemiLight.position.set(0, 50, 0);
-    scene.add(hemiLight);
-
-    // const dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
-    // dirLight.color.setHSL( 0.1, 1, 0.95 );
-    // dirLight.position.set( - 1, 1.75, 1 );
-    // dirLight.position.multiplyScalar( 30 );
-    // scene.add( dirLight );
-    // dirLight.castShadow = true;
-    // dirLight.shadow.mapSize.width = 2048;
-    // dirLight.shadow.mapSize.height = 2048;
-    // let d = 50;
-    // dirLight.shadow.camera.left = - d;
-    // dirLight.shadow.camera.right = d;
-    // dirLight.shadow.camera.top = d;
-    // dirLight.shadow.camera.bottom = - d;
-    // dirLight.shadow.camera.far = 3500;
-    // dirLight.shadow.bias = - 0.0001;
-}
-{
-    const intensity = 1;
-    const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
-    light.position.set(-1, 2, 4);
-    scene.add(light);
-}
-{
-    const intensity = 1;
-    const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
-    light.position.set(1, -2, -4);
-    scene.add(light);
-}
-
-animate()
 
 // function startRotation(axis, offset, direction) {
 function startRotation(move) {
@@ -314,32 +447,29 @@ function getNextPhase() {
     return SOLVER_PHASE.COMPLETE;
 }
 
-function isCubeSolved() {
+function doNextMove() {
     const phase = getNextPhase()
     console.log('PHASE:', phase)
 
-    return phase == SOLVER_PHASE.COMPLETE;
-}
-
-function doNextMove() {
     if (state.currently == STATE.SHUFFE) {
         if (state.movesQueue.length) {
             console.log('moves left ', state.movesQueue.length)
+            // pop move from queue and perform it
             startRotation(state.movesQueue.pop())
         } else {
             state.currently = STATE.IDLE
         }
-    } else if(isCubeSolved()) {
+    } else if(phase == SOLVER_PHASE.COMPLETE) {
         state.currently = STATE.IDLE
         // do nothing
     } else if (state.currently == STATE.SOLVE) {
-        console.log('-- do solve')
-        // determine next phase
-        const next = getNextPhase()
+        if (state.movesQueue.length) {
+            // pop move from queue and perform it
+            startRotation(state.movesQueue.pop())
+        } else {
+            // pump moves onto queue if queue is empty
 
-        // pump moves onto queue if queue is empty
-
-        // else pop move from queue and perform it
+        }
     }
 }
 
@@ -360,137 +490,6 @@ function pushRandomMoves(num) {
         const dir = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1        
         state.movesQueue.push(new Move(axis, offset, dir))
     }
-}
-
-{
-    const spriteMapCW = new THREE.TextureLoader().load("images/cw.png");
-    const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png");
-    const buttons = new THREE.Group()
-    addButtons(new Vector3(3, 0, 0), 'right')
-    addButtons(new Vector3(-3, 0, 0), 'left')
-    addButtons(new Vector3(0, 3, 0), 'top')
-    addButtons(new Vector3(0, -3, 0), 'bottom')
-    addButtons(new Vector3(0, 0, 3), 'back')
-    addButtons(new Vector3(0, 0, -3), 'front')
-    window.addEventListener("mousemove", onDocumentMouseMove, false);
-
-    function addButtons(pos, name) {
-        const spriteMaterialCW = new THREE.SpriteMaterial({ map: spriteMapCW, color: 0xffffff })
-        const spriteRightCW = new THREE.Sprite(spriteMaterialCW)
-        spriteRightCW.position.x = pos.x
-        spriteRightCW.position.y = pos.y - 0.3
-        spriteRightCW.position.z = pos.z
-        spriteRightCW.scale.x = 0.5
-        spriteRightCW.scale.y = 0.5
-        spriteRightCW.name = name + "_cw"
-        spriteRightCW.userData.isBtn = true
-        buttons.add(spriteRightCW)
-
-        const spriteMaterialCCW = new THREE.SpriteMaterial({ map: spriteMapCCW, color: 0xffffff })
-        const spriteRightCCW = new THREE.Sprite(spriteMaterialCCW)
-        spriteRightCCW.position.x = pos.x
-        spriteRightCCW.position.y = pos.y + 0.3
-        spriteRightCCW.position.z = pos.z
-        spriteRightCCW.scale.x = 0.5
-        spriteRightCCW.scale.y = 0.5
-        spriteRightCCW.name = name + "_ccw"
-        spriteRightCCW.userData.isBtn = true
-        buttons.add(spriteRightCCW)
-
-        scene.add(buttons)
-    }
-
-    let selectedObject = null;
-    function onDocumentMouseMove(event) {
-        event.preventDefault();
-        if (selectedObject) {
-            selectedObject.material.color.set('#ffffff')
-            selectedObject = null
-        }
-        let intersects = getIntersects(event.layerX, event.layerY)
-        if (intersects.length > 0) {
-            let res = intersects.filter(function (res) {
-                return res && res.object;
-            })[0];
-
-            if (res && res.object && res.object.userData.isBtn) {
-                selectedObject = res.object
-                selectedObject.material.color.set('#ff0000')
-            }
-        }
-    }
-    let raycaster = new THREE.Raycaster();
-    let mouseVector = new Vector2();
-    function getIntersects(x, y) {
-        x = (x / window.innerWidth) * 2 - 1;
-        y = - (y / window.innerHeight) * 2 + 1;
-        mouseVector.set(x, y, 0.5);
-        raycaster.setFromCamera(mouseVector, camera);
-        return raycaster.intersectObjects(buttons.children, true);
-    }
-
-    document.onclick = function (e) {
-        if (selectedObject) {
-            switch (selectedObject.name) {
-                case 'right_cw':
-                    startRotation(new Move(RIGHT, 1, 1))
-                    break;
-                case 'right_ccw':
-                    startRotation(new Move(RIGHT, 1, -1))
-                    break;
-                case 'left_cw':
-                    startRotation(new Move(RIGHT, -1, 1))
-                    break;
-                case 'left_ccw':
-                    startRotation(new Move(RIGHT, -1, -1))
-                    break;
-                case 'top_cw':
-                    startRotation(new Move(UP, 1, 1))
-                    break;
-                case 'top_ccw':
-                    startRotation(new Move(UP, 1, -1))
-                    break;
-                case 'bottom_cw':
-                    startRotation(new Move(UP, -1, 1))
-                    break;
-                case 'bottom_ccw':
-                    startRotation(new Move(UP, -1, -1))
-                    break;
-                case 'front_cw':
-                    startRotation(new Move(FRONT, 1, 1))
-                    break;
-                case 'front_ccw':
-                    startRotation(new Move(FRONT, 1, -1))
-                    break;
-                case 'back_cw':
-                    startRotation(new Move(FRONT, -1, 1))
-                    break;
-                case 'back_ccw':
-                    startRotation(new Move(FRONT, -1, -1))
-                    break;
-            }
-        }
-    }
-}
-
-function makeLine(v1, v2, colorNormalized) {
-    const geometry = new THREE.BufferGeometry()
-    const mat = new THREE.LineBasicMaterial({ vertexColors: THREE.VertexColors })
-    const vertexPosition = []
-    const vertexColor = []
-    vertexPosition.push(v1.x, v1.y, v1.z)
-    vertexColor.push(colorNormalized.x)
-    vertexColor.push(colorNormalized.y)
-    vertexColor.push(colorNormalized.z)
-    vertexPosition.push(v2.x, v2.y, v2.z)
-    vertexColor.push(colorNormalized.x)
-    vertexColor.push(colorNormalized.y)
-    vertexColor.push(colorNormalized.z)
-    geometry.addAttribute('position', new THREE.Float32BufferAttribute(vertexPosition, 3));
-    geometry.addAttribute('color', new THREE.Float32BufferAttribute(vertexColor, 3));
-    geometry.computeBoundingSphere();
-    const line = new THREE.Line(geometry, mat)
-    scene.add(line)
 }
 
 init()
