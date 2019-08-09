@@ -34,39 +34,45 @@ const materials = {
     ORANGE: new THREE.MeshPhongMaterial({ color: colorsHexa.ORANGE, side: THREE.FrontSide }),
     BLACK: new THREE.MeshPhongMaterial({ color: colorsHexa.BLACK, side: THREE.FrontSide }),
 }
+
+const STATE = {
+    IDLE: 0,
+    SOLVE: 1,
+    SHUFFE: 2    
+}
+
 const state = {
-    grid:  [],
+    grid: [],
     speed: 8,
-    axis: null,
     isMoving: false,
-    t: 0.0,
-    randomMoves: 0,    
+    onAxis: null,
+    t: 0.0, // infer float
+    randomMovesLeft: 0, // infer int
+    currently: STATE.STATE_IDLE
 }
 
 const SOLVER_PHASE = {
-    NONE: 0,
-    WHITE_CROSS_1: 1,
-    WHITE_CROSS_2: 2,
-    WHITE_CROSS_3: 3,
-    WHITE_CROSS_4: 4,
-    T_1: 2,
-    T_2: 2,
-    T_3: 2,
-    T_4: 2,
-    SECOND_LAYER_1: 3, // if wrong orientation, do it twice
-    SECOND_LAYER_2: 3, // if wrong orientation, do it twice
-    SECOND_LAYER_3: 3, // if wrong orientation, do it twice
-    SECOND_LAYER_4: 3, // if wrong orientation, do it twice
-    YELLOW_CROSS_1: 1, // may be skipped
-    YELLOW_CROSS_2: 1, // may be skipped
-    YELLOW_CROSS_3: 1, // may be skipped
-    YELLOW_CROSS_4: 1,
-    YELLOW_EDGES_1: 1, // may be skipped
-    YELLOW_EDGES_2: 1, // may be skipped
-    YELLOW_EDGES_3: 1, // may be skipped
-    YELLOW_EDGES_4: 1,
-    
-    // ...
+    COMPLETE: 'complete',
+    WHITE_CROSS_1: 'red white',
+    WHITE_CROSS_2: 'orange white',
+    WHITE_CROSS_3: 'green white',
+    WHITE_CROSS_4: 'blue white',
+    T_1: 'white red green corner',
+    T_2: 'white red blue corner',
+    T_3: 'white orange green corner',
+    T_4: 'white orange blue corner',
+    SECOND_LAYER_1: 9, // if wrong orientation, do it twice
+    SECOND_LAYER_2: 10, // if wrong orientation, do it twice
+    SECOND_LAYER_3: 11, // if wrong orientation, do it twice
+    SECOND_LAYER_4: 12, // if wrong orientation, do it twice
+    YELLOW_CROSS_1: 13, // may be skipped
+    YELLOW_CROSS_2: 14, // may be skipped
+    YELLOW_CROSS_3: 15, // may be skipped
+    YELLOW_CROSS_4: 16,
+    YELLOW_EDGES_1: 17, // may be skipped
+    YELLOW_EDGES_2: 18, // may be skipped
+    YELLOW_EDGES_3: 19, // may be skipped
+    YELLOW_EDGES_4: 20,
 }
 
 function init() {
@@ -88,6 +94,7 @@ function init() {
                     piece.positionBeforeAnimation = position.clone()
                     piece.dynamicPosition = position.clone()
                     piece.name = `${position.x},${position.y},${position.z}`
+                    piece.solvedPosition = new Vector3(x, y, z)
                     
                     for(let child of piece.children) {
                         child.translateX(position.x*2)
@@ -132,32 +139,13 @@ function init() {
                 }
             }
         }
+        
         console.log('grid',state.grid)
+        onMoveEnd()
 
     }, undefined, function (error) {
         console.error(error)
     })
-}
-
-function isCubeSolved() {
-    const faces = {}
-    for (const piece of state.grid) {        
-        for(const faceColor of FACE_COLORS) {
-            if(piece.userData[faceColor]) {
-                 // init cache:
-                if(!faces[faceColor]) {
-                    faces[faceColor] = piece.userData[faceColor].clone()
-                }
-                
-                // compare with cache:
-                if (!faces[faceColor].equals(piece.userData[faceColor])) {
-                    return false
-                }
-            }
-        }
-    }
-    
-    return true
 }
 
 const clock = new THREE.Clock();
@@ -174,11 +162,10 @@ renderer.gammaOutput = true
 const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
-document.querySelector('#randomize').addEventListener('click', function (e) {
-    addMovesToQueue(30)
-})
-document.querySelector('#solve').addEventListener('click', function (e) {
-    console.log('solve')
+document.querySelector('#randomize').addEventListener('click', function (e) { addRandomMovesToQueue(3) })
+document.querySelector('#solve').addEventListener('click', function (e) { 
+    state.randomMovesLeft = 0
+    state.currently = STATE.SOLVE
 })
 
 { // make 3D axis
@@ -242,8 +229,8 @@ function startRotation(axis, offset, direction) {
     console.log('startRotation: ', axis, offset, direction)
 
     state.isMoving = true
-    state.axis = axis.clone()
-    state.axis.multiplyScalar(offset)
+    state.onAxis = axis.clone()
+    state.onAxis.multiplyScalar(offset)
     state.t = 0.0
     state.direction = direction
     state.offset = offset
@@ -256,7 +243,7 @@ function startRotation(axis, offset, direction) {
 }
 
 function animate() {
-    const axis = state.axis
+    const axis = state.onAxis
     let dt = clock.getDelta() * state.speed
     if (axis) {
         state.t += dt
@@ -278,7 +265,7 @@ function animate() {
             console.log('==== stopping ====')
             for (let piece of state.grid) {
                 // correct rounding errors
-                piece.positionBeforeAnimation = piece.dynamicPosition.clone().round()
+                piece.positionBeforeAnimation = piece.dynamicPosition.round().clone()
                 if ((axis.x && piece.positionBeforeAnimation.x == axis.x) || 
                     (axis.y && piece.positionBeforeAnimation.y == axis.y) || 
                     (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
@@ -290,7 +277,7 @@ function animate() {
                 }
             }
 
-            state.axis = null
+            state.onAxis = null
             state.isMoving = false
             onMoveEnd()
         }
@@ -300,16 +287,73 @@ function animate() {
     renderer.render(scene, camera)
 }
 
+function isPieceInPlace(x, y, z) {
+    const name = `${x},${y},${z}`
+    const piece = state.grid.find(piece => piece.name == name)
+    return piece.dynamicPosition.equals(piece.solvedPosition);
+}
+
+function getCurrentNextPhase() {
+    if(!isPieceInPlace( 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
+    if(!isPieceInPlace( 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
+    if(!isPieceInPlace(-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
+    if(!isPieceInPlace( 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
+    if(!isPieceInPlace(-1, 1, 1)) return SOLVER_PHASE.T_1;
+    if(!isPieceInPlace( 1, 1, 1)) return SOLVER_PHASE.T_2;
+    if(!isPieceInPlace(-1, 1,-1)) return SOLVER_PHASE.T_3;
+    if(!isPieceInPlace( 1, 1,-1)) return SOLVER_PHASE.T_4;
+
+    return SOLVER_PHASE.COMPLETE;
+}
+
+function isCubeSolved() {
+    const phase = getCurrentNextPhase()
+    console.log('PHASE:', phase)
+
+    return phase == SOLVER_PHASE.COMPLETE;
+}
+
 function checkForMovesLeft() { 
-    if (state.randomMoves) {
+    if (state.randomMovesLeft) {
         makeRandomMove()        
+    } else {
+        state.currently = STATE.IDLE
     }
 }
 
-function makeRandomMove()
-{
-    state.randomMoves--
-    console.log('moves left ', state.randomMoves)
+function onMoveEnd() {
+    if(isCubeSolved()) {
+        state.currently = STATE.IDLE
+    } else if (state.currently == STATE.SHUFFE) {
+        checkForMovesLeft()    
+    } else if (state.currently == STATE.SOLVE) {
+        // determine next phase 
+
+        // pump moves onto queue if queue is empty
+
+        // else pop move from queue and perform it
+    }
+}
+
+function addRandomMovesToQueue(moves) {
+    state.randomMovesLeft += moves
+    state.currently = STATE.SHUFFE
+    checkForMovesLeft()
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+function render() {
+    renderer.render(scene, camera)
+}
+
+function makeRandomMove() {
+    state.randomMovesLeft--
+    console.log('moves left ', state.randomMovesLeft)
 
     let axis = null
     const randAxis = Math.floor((Math.random() * 3) + 1)
@@ -328,27 +372,6 @@ function makeRandomMove()
     let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
     const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
     startRotation(axis, offset, direction)
-}
-
-function onMoveEnd() {
-    console.log('onMoveEnd')
-    checkForMovesLeft()
-    console.log(isCubeSolved())
-}
-
-function addMovesToQueue(moves) {
-    state.randomMoves += moves
-    checkForMovesLeft()
-}
-
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-}
-
-function render() {
-    renderer.render(scene, camera)
 }
 
 {
