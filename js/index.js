@@ -2,7 +2,6 @@
 const Vector3 = THREE.Vector3
 const Vector2 = THREE.Vector2
 const Color = THREE.Color
-const Quaternion = THREE.Quaternion
 
 // constants
 const RADIANS = Math.PI / 180
@@ -78,10 +77,7 @@ const SOLVER_PHASE = {
 function init() {
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
-        console.log('GLTF:', gltf)
         const PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
-        console.log(PieceGeometry)
-        // scene.add( gltf.scene );
         // default cube configuration: white is up, red facing us
         for (let x = -1; x <= 1; x++) {
             for (let y = -1; y <= 1; y++) {
@@ -139,10 +135,7 @@ function init() {
                 }
             }
         }
-        
-        console.log('grid',state.grid)
-        onMoveEnd()
-
+        doNextMove()
     }, undefined, function (error) {
         console.error(error)
     })
@@ -152,20 +145,33 @@ const clock = new THREE.Clock();
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333);
 
-let camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-let renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+camera.position.x = 2.5
+camera.position.y = 3
+camera.position.z = 6
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.gammaInput = true
 renderer.gammaOutput = true
 
+const orbit = new THREE.OrbitControls(camera, renderer.domElement)
+orbit.update()
+orbit.addEventListener('change', render)
+
 const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
-document.querySelector('#randomize').addEventListener('click', function (e) { addRandomMovesToQueue(3) })
+document.querySelector('#randomize').addEventListener('click', function (e) { 
+    state.randomMovesLeft += 5
+    state.currently = STATE.SHUFFE
+    checkForMovesLeft()
+ })
 document.querySelector('#solve').addEventListener('click', function (e) { 
     state.randomMovesLeft = 0
     state.currently = STATE.SOLVE
+    doNextMove()
 })
 
 { // make 3D axis
@@ -174,10 +180,6 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
     makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
 }
-
-camera.position.x = 2.5
-camera.position.y = 3
-camera.position.z = 6
 
 // Lights
 {
@@ -204,29 +206,23 @@ camera.position.z = 6
     // dirLight.shadow.bias = - 0.0001;
 }
 {
-    const color = 0xFFFFFF;
     const intensity = 1;
-    const light = new THREE.DirectionalLight(color, intensity);
+    const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
     light.position.set(-1, 2, 4);
     scene.add(light);
 }
 {
-    const color = 0xFFFFFF;
     const intensity = 1;
-    const light = new THREE.DirectionalLight(color, intensity);
+    const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
     light.position.set(1, -2, -4);
     scene.add(light);
 }
-
-orbit = new THREE.OrbitControls(camera, renderer.domElement)
-orbit.update()
-orbit.addEventListener('change', render)
 
 animate()
 
 function startRotation(axis, offset, direction) {
     if (state.isMoving) return
-    console.log('startRotation: ', axis, offset, direction)
+    // console.log('startRotation: ', axis, offset, direction)
 
     state.isMoving = true
     state.onAxis = axis.clone()
@@ -262,7 +258,6 @@ function animate() {
 
         // On move stop
         if (state.t >= 1 && state.isMoving) {
-            console.log('==== stopping ====')
             for (let piece of state.grid) {
                 // correct rounding errors
                 piece.positionBeforeAnimation = piece.dynamicPosition.round().clone()
@@ -279,7 +274,7 @@ function animate() {
 
             state.onAxis = null
             state.isMoving = false
-            onMoveEnd()
+            doNextMove()
         }
     }
 
@@ -321,24 +316,19 @@ function checkForMovesLeft() {
     }
 }
 
-function onMoveEnd() {
+function doNextMove() {
     if(isCubeSolved()) {
         state.currently = STATE.IDLE
     } else if (state.currently == STATE.SHUFFE) {
-        checkForMovesLeft()    
+        checkForMovesLeft()
     } else if (state.currently == STATE.SOLVE) {
+        console.log('-- do solve')
         // determine next phase 
 
         // pump moves onto queue if queue is empty
 
         // else pop move from queue and perform it
     }
-}
-
-function addRandomMovesToQueue(moves) {
-    state.randomMovesLeft += moves
-    state.currently = STATE.SHUFFE
-    checkForMovesLeft()
 }
 
 function onWindowResize() {
@@ -504,34 +494,5 @@ function makeLine(v1, v2, colorNormalized) {
     const line = new THREE.Line(geometry, mat)
     scene.add(line)
 }
-
-// const EasingFunctions = {
-//     // no easing, no acceleration
-//     linear: function (t) { return t },
-//     // accelerating from zero velocity
-//     easeInQuad: function (t) { return t*t },
-//     // decelerating to zero velocity
-//     easeOutQuad: function (t) { return t*(2-t) },
-//     // acceleration until halfway, then deceleration
-//     easeInOutQuad: function (t) { return t<.5 ? 2*t*t : -1+(4-2*t)*t },
-//     // accelerating from zero velocity
-//     easeInCubic: function (t) { return t*t*t },
-//     // decelerating to zero velocity
-//     easeOutCubic: function (t) { return (--t)*t*t+1 },
-//     // acceleration until halfway, then deceleration
-//     easeInOutCubic: function (t) { return t<.5 ? 4*t*t*t : (t-1)*(2*t-2)*(2*t-2)+1 },
-//     // accelerating from zero velocity
-//     easeInQuart: function (t) { return t*t*t*t },
-//     // decelerating to zero velocity
-//     easeOutQuart: function (t) { return 1-(--t)*t*t*t },
-//     // acceleration until halfway, then deceleration
-//     easeInOutQuart: function (t) { return t<.5 ? 8*t*t*t*t : 1-8*(--t)*t*t*t },
-//     // accelerating from zero velocity
-//     easeInQuint: function (t) { return t*t*t*t*t },
-//     // decelerating to zero velocity
-//     easeOutQuint: function (t) { return 1+(--t)*t*t*t*t },
-//     // acceleration until halfway, then deceleration
-//     easeInOutQuint: function (t) { return t<.5 ? 16*t*t*t*t*t : 1+16*(--t)*t*t*t*t }
-// }
 
 init()
