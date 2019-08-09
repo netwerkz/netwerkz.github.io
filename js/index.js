@@ -264,7 +264,6 @@ function init() {
         scene.add(light);
     }
     
-    
     var loader = new THREE.GLTFLoader();
     loader.load('models/Piece.glb', function (gltf) {
         const PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
@@ -365,7 +364,6 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     doNextMove()
 })
 
-// function startRotation(axis, offset, direction) {
 function startRotation(move) {
     if (state.isMoving) return
     // console.log('startRotation: ', axis, offset, direction)
@@ -448,8 +446,8 @@ function getNextPhase() {
 }
 
 function doNextMove() {
-    const phase = getNextPhase()
-    console.log('PHASE:', phase)
+    const next = getNextPhase()
+    console.log('PHASE:', next)
 
     if (state.currently == STATE.SHUFFE) {
         if (state.movesQueue.length) {
@@ -459,7 +457,7 @@ function doNextMove() {
         } else {
             state.currently = STATE.IDLE
         }
-    } else if(phase == SOLVER_PHASE.COMPLETE) {
+    } else if (next == SOLVER_PHASE.COMPLETE) {
         state.currently = STATE.IDLE
         // do nothing
     } else if (state.currently == STATE.SOLVE) {
@@ -468,7 +466,20 @@ function doNextMove() {
             startRotation(state.movesQueue.pop())
         } else {
             // pump moves onto queue if queue is empty
+            switch (next) {
+                case SOLVER_PHASE.WHITE_CROSS_1:
 
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_2:
+
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_3:
+
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_4:
+
+                    break
+            }
         }
     }
 }
