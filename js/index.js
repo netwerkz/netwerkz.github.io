@@ -14,6 +14,7 @@ const DOWN = new Vector3(0, -1, 0)
 const FRONT = new Vector3(0, 0, -1)
 const BACK = new Vector3(0, 0, 1)
 const FACE_COLORS = ['RED', 'ORANGE', 'GREEN', 'BLUE', 'WHITE', 'YELLOW']
+const axes = [RIGHT, FRONT, UP]
 const colorsHexa = {
     RED: 0xff0000,
     GREEN: 0x00aa00,
@@ -34,6 +35,17 @@ const materials = {
     BLACK: new THREE.MeshPhongMaterial({ color: colorsHexa.BLACK, side: THREE.FrontSide }),
 }
 
+/**
+ * @param {Vector3} axis normalized
+ * @param {int} offset -1/+1
+ * @param {int} direction -1/+1
+ */
+const Move = function(axis, offset, direction) {
+    this.axis = axis.clone()    
+    this.offset = offset
+    this.direction = direction
+}
+
 const STATE = {
     IDLE: 0,
     SOLVE: 1,
@@ -46,8 +58,8 @@ const state = {
     isMoving: false,
     onAxis: null,
     t: 0.0, // infer float
-    randomMovesLeft: 0, // infer int
-    currently: STATE.STATE_IDLE
+    currently: STATE.STATE_IDLE,
+    movesQueue: []
 }
 
 const SOLVER_PHASE = {
@@ -164,12 +176,12 @@ const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) { 
-    state.randomMovesLeft += 5
+    pushRandomMoves(5)
     state.currently = STATE.SHUFFE
-    checkForMovesLeft()
+    doNextMove()
  })
 document.querySelector('#solve').addEventListener('click', function (e) { 
-    state.randomMovesLeft = 0
+    state.movesQueue = [] // reset queue
     state.currently = STATE.SOLVE
     doNextMove()
 })
@@ -220,16 +232,17 @@ document.querySelector('#solve').addEventListener('click', function (e) {
 
 animate()
 
-function startRotation(axis, offset, direction) {
+// function startRotation(axis, offset, direction) {
+function startRotation(move) {
     if (state.isMoving) return
     // console.log('startRotation: ', axis, offset, direction)
 
     state.isMoving = true
-    state.onAxis = axis.clone()
-    state.onAxis.multiplyScalar(offset)
+    state.onAxis = move.axis.clone()
+    state.onAxis.multiplyScalar(move.offset)
     state.t = 0.0
-    state.direction = direction
-    state.offset = offset
+    state.direction = move.direction
+    state.offset = move.offset
 
     // play a sound
     const i = Math.floor((Math.random() * 6) + 1)
@@ -288,7 +301,7 @@ function isPieceInPlace(x, y, z) {
     return piece.dynamicPosition.equals(piece.solvedPosition);
 }
 
-function getCurrentNextPhase() {
+function getNextPhase() {
     if(!isPieceInPlace( 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
     if(!isPieceInPlace( 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
     if(!isPieceInPlace(-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
@@ -302,28 +315,27 @@ function getCurrentNextPhase() {
 }
 
 function isCubeSolved() {
-    const phase = getCurrentNextPhase()
+    const phase = getNextPhase()
     console.log('PHASE:', phase)
 
     return phase == SOLVER_PHASE.COMPLETE;
 }
 
-function checkForMovesLeft() { 
-    if (state.randomMovesLeft) {
-        makeRandomMove()        
-    } else {
-        state.currently = STATE.IDLE
-    }
-}
-
 function doNextMove() {
-    if(isCubeSolved()) {
+    if (state.currently == STATE.SHUFFE) {
+        if (state.movesQueue.length) {
+            console.log('moves left ', state.movesQueue.length)
+            startRotation(state.movesQueue.pop())
+        } else {
+            state.currently = STATE.IDLE
+        }
+    } else if(isCubeSolved()) {
         state.currently = STATE.IDLE
-    } else if (state.currently == STATE.SHUFFE) {
-        checkForMovesLeft()
+        // do nothing
     } else if (state.currently == STATE.SOLVE) {
         console.log('-- do solve')
-        // determine next phase 
+        // determine next phase
+        const next = getNextPhase()
 
         // pump moves onto queue if queue is empty
 
@@ -341,27 +353,13 @@ function render() {
     renderer.render(scene, camera)
 }
 
-function makeRandomMove() {
-    state.randomMovesLeft--
-    console.log('moves left ', state.randomMovesLeft)
-
-    let axis = null
-    const randAxis = Math.floor((Math.random() * 3) + 1)
-    switch (randAxis) {
-        case 1:
-            axis = RIGHT
-            break;
-        case 2:
-            axis = FRONT
-            break;
-        case 3:
-            axis = UP
-            break;
+function pushRandomMoves(num) {
+    for(let i = 0; i < num; i++) {
+        const axis = axes[Math.floor((Math.random() * 3))]
+        const offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+        const dir = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1        
+        state.movesQueue.push(new Move(axis, offset, dir))
     }
-
-    let offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-    const direction = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-    startRotation(axis, offset, direction)
 }
 
 {
@@ -435,40 +433,40 @@ function makeRandomMove() {
         if (selectedObject) {
             switch (selectedObject.name) {
                 case 'right_cw':
-                    startRotation(RIGHT, 1, 1)
+                    startRotation(new Move(RIGHT, 1, 1))
                     break;
                 case 'right_ccw':
-                    startRotation(RIGHT, 1, -1)
+                    startRotation(new Move(RIGHT, 1, -1))
                     break;
                 case 'left_cw':
-                    startRotation(RIGHT, -1, 1)
+                    startRotation(new Move(RIGHT, -1, 1))
                     break;
                 case 'left_ccw':
-                    startRotation(RIGHT, -1, -1)
+                    startRotation(new Move(RIGHT, -1, -1))
                     break;
                 case 'top_cw':
-                    startRotation(UP, 1, 1)
+                    startRotation(new Move(UP, 1, 1))
                     break;
                 case 'top_ccw':
-                    startRotation(UP, 1, -1)
+                    startRotation(new Move(UP, 1, -1))
                     break;
                 case 'bottom_cw':
-                    startRotation(UP, -1, 1)
+                    startRotation(new Move(UP, -1, 1))
                     break;
                 case 'bottom_ccw':
-                    startRotation(UP, -1, -1)
+                    startRotation(new Move(UP, -1, -1))
                     break;
                 case 'front_cw':
-                    startRotation(FRONT, 1, 1)
+                    startRotation(new Move(FRONT, 1, 1))
                     break;
                 case 'front_ccw':
-                    startRotation(FRONT, 1, -1)
+                    startRotation(new Move(FRONT, 1, -1))
                     break;
                 case 'back_cw':
-                    startRotation(FRONT, -1, 1)
+                    startRotation(new Move(FRONT, -1, 1))
                     break;
                 case 'back_ccw':
-                    startRotation(FRONT, -1, -1)
+                    startRotation(new Move(FRONT, -1, -1))
                     break;
             }
         }
