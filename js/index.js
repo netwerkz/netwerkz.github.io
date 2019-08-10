@@ -280,6 +280,9 @@ function init() {
                     piece.dynamicPosition = position.clone()
                     piece.name = `${position.x},${position.y},${position.z}`
                     piece.solvedPosition = new Vector3(x, y, z)
+                    piece.userData.right = RIGHT.clone()
+                    piece.userData.up = UP.clone()
+                    piece.userData.front = FRONT.clone()
                     
                     for(let child of piece.children) {
                         child.translateX(position.x*2)
@@ -413,6 +416,11 @@ function animate() {
                             piece.userData[faceColor].applyAxisAngle(axis, TURN * -state.direction).round()
                         }
                     }
+                    
+                    // this is needed so we also track the piece rotation for later checks
+                    piece.userData.right.applyAxisAngle(axis, TURN * -state.direction).round()
+                    piece.userData.up.applyAxisAngle(axis, TURN * -state.direction).round()
+                    piece.userData.front.applyAxisAngle(axis, TURN * -state.direction).round()
                 }
             }
 
@@ -429,7 +437,11 @@ function animate() {
 function isPieceInPlace(x, y, z) {
     const name = `${x},${y},${z}`
     const piece = state.grid.find(piece => piece.name == name)
-    return piece.dynamicPosition.equals(piece.solvedPosition);
+    const isCorrectPosition         = piece.dynamicPosition.equals(piece.solvedPosition)
+    const isCorrectRightOrientation = piece.userData.right.equals(RIGHT)
+    const isCorrectUpOrientation    = piece.userData.up.equals(UP)
+    const isCorrectFrontOrientation = piece.userData.front.equals(FRONT)
+    return isCorrectPosition && isCorrectRightOrientation && isCorrectUpOrientation && isCorrectFrontOrientation;
 }
 
 function getNextPhase() {
@@ -482,6 +494,27 @@ function doNextMove() {
             }
         }
     }
+}
+
+function isCubeSolved() {
+    const faces = {}
+    for (const piece of state.grid) {        
+        for(const faceColor of FACE_COLORS) {
+            if(piece.userData[faceColor]) {
+                 // init cache:
+                if(!faces[faceColor]) {
+                    faces[faceColor] = piece.userData[faceColor].clone()
+                }
+                
+                // compare with cache:
+                if (!faces[faceColor].equals(piece.userData[faceColor])) {
+                    return false
+                }
+            }
+        }
+    }
+    
+    return true
 }
 
 function onWindowResize() {
