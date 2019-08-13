@@ -110,7 +110,7 @@ container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) { 
     pushRandomMoves(5)
-    state.currently = STATE_SHUFFE
+    state.currently = STATE_SHUFFLE
     doNextMove()
  })
 document.querySelector('#solve').addEventListener('click', function (e) { 
@@ -220,7 +220,7 @@ function doNextMove() {
     const piece = ref.piece
     console.log('PHASE:', next)
 
-    if (state.currently == STATE_SHUFFE) {
+    if (state.currently == STATE_SHUFFLE) {
 
         if (state.movesQueue.length) {
             console.log('moves left ', state.movesQueue.length)
@@ -237,7 +237,7 @@ function doNextMove() {
         // do nothing
 
     } else if (state.currently == STATE_SOLVE) {
-        
+
         if (state.movesQueue.length) {
             // pop move from queue and perform it
             startRotation(state.movesQueue.pop())
