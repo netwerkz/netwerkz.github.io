@@ -48,13 +48,13 @@ class Move {
     }
 }
 
-const STATE_IDLE = 0;
-const STATE_SOLVE = 1;
-const STATE_SHUFFLE = 2;
+const STATE_IDLE = 'IDLE';
+const STATE_SOLVE = 'SOLVE';
+const STATE_SHUFFLE = "SHUFFLE";
 
 const state = {
     grid: [],
-    speed: 8,
+    speed: 3,
     isMoving: false,
     onAxis: null,
     t: 0.0, // infer float
@@ -90,10 +90,10 @@ const clock = new THREE.Clock();
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.x = 2.5
-camera.position.y = 3
-camera.position.z = 6
+const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
+camera.position.x = 2
+camera.position.y = 2.5
+camera.position.z = 5
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
@@ -118,6 +118,7 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.currently = STATE_SOLVE
     doNextMove()
 })
+const info = document.querySelector('#info')
 
 function startRotation(move) {
     if (state.isMoving) return
@@ -182,6 +183,13 @@ function animate() {
         }
     }
 
+    const onAxisText = state.onAxis ? '[' + state.onAxis.x + ',' + state.onAxis.y + ',' + state.onAxis.z + ']': null
+    info.innerHTML = 'STATE: ' + state.currently 
+    info.innerHTML += '<br> SPEED: ' + state.speed + '/s'
+    info.innerHTML += '<br> AXIS: ' + onAxisText
+    info.innerHTML += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
+    info.innerHTML += '<br> QUEUE: ' + state.movesQueue.length + ' moves'
+    
     requestAnimationFrame(animate)
     renderer.render(scene, camera)
 }
@@ -195,7 +203,7 @@ function isPieceInPlace(ref, x, y, z) {
     const isCorrectUpOrientation    = piece.userData.up.equals(UP)
     const isCorrectFrontOrientation = piece.userData.front.equals(FRONT)
     ref.rotationOk = isCorrectRightOrientation && isCorrectUpOrientation && isCorrectFrontOrientation
-    return isCorrectPosition && ref.rotated
+    return isCorrectPosition && ref.rotationOk
 }
 
 function getNextPhase(ref) {
@@ -219,29 +227,27 @@ function doNextMove() {
     const next = getNextPhase(ref)
     const piece = ref.piece
     console.log('PHASE:', next)
+    console.log('STATE:', state.currently)
 
     if (state.currently == STATE_SHUFFLE) {
 
-        if (state.movesQueue.length) {
-            console.log('moves left ', state.movesQueue.length)
-            // pop move from queue and perform it
-            startRotation(state.movesQueue.pop())
-        } else {
+        if (state.movesQueue.length == 0) {
             state.currently = STATE_IDLE
+        } else {
+            console.log('moves left ', state.movesQueue.length)
         }
 
     } else if (next == SOLVER_PHASE.COMPLETE) {
 
         state.currently = STATE_IDLE
+
+        console.log('----- SOLVER_PHASE.COMPLETE')
         
         // do nothing
 
     } else if (state.currently == STATE_SOLVE) {
 
-        if (state.movesQueue.length) {
-            // pop move from queue and perform it
-            startRotation(state.movesQueue.pop())
-        } else {
+        if (state.movesQueue.length == 0) {
             // pump moves onto queue if queue is empty
             switch (next) {
                 case SOLVER_PHASE.WHITE_CROSS_1:
@@ -254,11 +260,26 @@ function doNextMove() {
 
                     // if piece is on level y==0 then rotate it on x axis 1 times to get it on y==-1
                     else if (piece.dynamicPosition.y == 0) {
-
-                    }
-                    
-                    // if piece is on level y==-1 ... 
-                    
+                        if(piece.dynamicPosition.z == 1) {
+                            console.log("piece.userData.WHITE", piece.userData.WHITE)
+                            if(piece.userData.RED.equals(FRONT)) {
+                                state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
+                            } else {
+                                state.movesQueue.push(new Move(FRONT, -1, piece.dynamicPosition.x))
+                                state.movesQueue.push(new Move(UP, -1, 1))
+                                state.movesQueue.push(new Move(RIGHT, 1, 1))
+                            }
+                        } else {
+                            console.error('handle sdfsgg')
+                        }
+                    } else { // if piece is on level y==-1 ... 
+                        if(piece.userData.RED.equals(FRONT)) {
+                            state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
+                            // state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
+                        } else {
+                            console.error('handle sadf')
+                        }
+                    }                    
                     break
                 case SOLVER_PHASE.WHITE_CROSS_2:
 
@@ -271,6 +292,11 @@ function doNextMove() {
                     break
             }
         }
+    }
+    
+    if(state.movesQueue.length > 0) {
+        // deque next move and start it
+        startRotation(state.movesQueue.shift())
     }
 }
 
