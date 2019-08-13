@@ -48,11 +48,9 @@ class Move {
     }
 }
 
-const STATE = {
-    IDLE: 0,
-    SOLVE: 1,
-    SHUFFE: 2    
-}
+const STATE_IDLE = 0;
+const STATE_SOLVE = 1;
+const STATE_SHUFFLE = 2;
 
 const state = {
     grid: [],
@@ -60,7 +58,7 @@ const state = {
     isMoving: false,
     onAxis: null,
     t: 0.0, // infer float
-    currently: STATE.STATE_IDLE,
+    currently: STATE_IDLE,
     movesQueue: []
 }
 
@@ -86,6 +84,234 @@ const SOLVER_PHASE = {
     YELLOW_EDGES_2: 18, // may be skipped
     YELLOW_EDGES_3: 19, // may be skipped
     YELLOW_EDGES_4: 20,
+}
+
+const clock = new THREE.Clock();
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(0x333333);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
+camera.position.x = 2.5
+camera.position.y = 3
+camera.position.z = 6
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
+renderer.setPixelRatio(window.devicePixelRatio)
+renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.gammaInput = true
+renderer.gammaOutput = true
+
+const orbit = new THREE.OrbitControls(camera, renderer.domElement)
+orbit.update()
+orbit.addEventListener('change', render)
+
+const container = document.getElementById('canvas')
+container.appendChild(renderer.domElement)
+window.addEventListener('resize', onWindowResize, false)
+document.querySelector('#randomize').addEventListener('click', function (e) { 
+    pushRandomMoves(5)
+    state.currently = STATE_SHUFFE
+    doNextMove()
+ })
+document.querySelector('#solve').addEventListener('click', function (e) { 
+    state.movesQueue = [] // reset queue
+    state.currently = STATE_SOLVE
+    doNextMove()
+})
+
+function startRotation(move) {
+    if (state.isMoving) return
+    // console.log('startRotation: ', axis, offset, direction)
+
+    state.isMoving = true
+    state.onAxis = move.axis.clone()
+    state.onAxis.multiplyScalar(move.offset)
+    state.t = 0.0
+    state.direction = move.direction
+    state.offset = move.offset
+
+    // play a sound
+    const i = Math.floor((Math.random() * 6) + 1)
+    const filename = 'sounds/rubik-0'+i+'.wav'
+    const audio = new Audio(filename)
+    audio.play()
+}
+
+function animate() {
+    const axis = state.onAxis
+    let dt = clock.getDelta() * state.speed
+    if (axis) {
+        state.t += dt
+        if (state.t >= 1) {
+            dt -= state.t - 1.0
+        }
+
+        for (const piece of state.grid) {
+            if ((axis.x && piece.positionBeforeAnimation.x == axis.x) ||
+                (axis.y && piece.positionBeforeAnimation.y == axis.y) ||
+                (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
+                piece.rotateOnWorldAxis(axis, TURN * dt * -state.direction)
+                piece.dynamicPosition.applyAxisAngle(axis, TURN * dt * -state.direction)
+            }
+        }
+
+        // On move stop
+        if (state.t >= 1 && state.isMoving) {
+            for (let piece of state.grid) {
+                // correct rounding errors
+                piece.positionBeforeAnimation = piece.dynamicPosition.round().clone()
+                if ((axis.x && piece.positionBeforeAnimation.x == axis.x) || 
+                    (axis.y && piece.positionBeforeAnimation.y == axis.y) || 
+                    (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
+                    for(const faceColor of FACE_COLORS) {
+                        if(piece.userData[faceColor]) {
+                            piece.userData[faceColor].applyAxisAngle(axis, TURN * -state.direction).round()
+                        }
+                    }
+                    
+                    // this is needed so we also track the piece rotation for later checks
+                    piece.userData.right.applyAxisAngle(axis, TURN * -state.direction).round()
+                    piece.userData.up.applyAxisAngle(axis, TURN * -state.direction).round()
+                    piece.userData.front.applyAxisAngle(axis, TURN * -state.direction).round()
+                }
+            }
+
+            state.onAxis = null
+            state.isMoving = false
+            doNextMove()
+        }
+    }
+
+    requestAnimationFrame(animate)
+    renderer.render(scene, camera)
+}
+
+function isPieceInPlace(ref, x, y, z) {
+    const name = `${x},${y},${z}`
+    ref.piece = state.grid.find(piece => piece.name == name)
+    const piece = ref.piece
+    const isCorrectPosition         = piece.dynamicPosition.equals(piece.solvedPosition)
+    const isCorrectRightOrientation = piece.userData.right.equals(RIGHT)
+    const isCorrectUpOrientation    = piece.userData.up.equals(UP)
+    const isCorrectFrontOrientation = piece.userData.front.equals(FRONT)
+    ref.rotationOk = isCorrectRightOrientation && isCorrectUpOrientation && isCorrectFrontOrientation
+    return isCorrectPosition && ref.rotated
+}
+
+function getNextPhase(ref) {
+    if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
+    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
+    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
+    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
+    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
+    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
+    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
+    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
+    // add more rules
+
+    ref.piece = null
+    // ref.rotationOk = false
+    return SOLVER_PHASE.COMPLETE;
+}
+
+function doNextMove() {
+    const ref = { piece: null, rotationOk: false };
+    const next = getNextPhase(ref)
+    const piece = ref.piece
+    console.log('PHASE:', next)
+
+    if (state.currently == STATE_SHUFFE) {
+
+        if (state.movesQueue.length) {
+            console.log('moves left ', state.movesQueue.length)
+            // pop move from queue and perform it
+            startRotation(state.movesQueue.pop())
+        } else {
+            state.currently = STATE_IDLE
+        }
+
+    } else if (next == SOLVER_PHASE.COMPLETE) {
+
+        state.currently = STATE_IDLE
+        
+        // do nothing
+
+    } else if (state.currently == STATE_SOLVE) {
+        
+        if (state.movesQueue.length) {
+            // pop move from queue and perform it
+            startRotation(state.movesQueue.pop())
+        } else {
+            // pump moves onto queue if queue is empty
+            switch (next) {
+                case SOLVER_PHASE.WHITE_CROSS_1:
+                    console.log(piece.dynamicPosition.y)
+                    // if piece is on level y==1 and rotation is not correct then 
+                    // rotate it on x/z axis 2 times to get it on y==-1
+                    if(piece.dynamicPosition.y == 1 && !ref.rotationOk) {
+
+                    }
+
+                    // if piece is on level y==0 then rotate it on x axis 1 times to get it on y==-1
+                    else if (piece.dynamicPosition.y == 0) {
+
+                    }
+                    
+                    // if piece is on level y==-1 ... 
+                    
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_2:
+
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_3:
+
+                    break
+                case SOLVER_PHASE.WHITE_CROSS_4:
+
+                    break
+            }
+        }
+    }
+}
+
+function isCubeSolved() {
+    const faces = {}
+    for (const piece of state.grid) {        
+        for(const faceColor of FACE_COLORS) {
+            if(piece.userData[faceColor]) {
+                 // init cache:
+                if(!faces[faceColor]) {
+                    faces[faceColor] = piece.userData[faceColor].clone()
+                }
+                
+                // compare with cache:
+                if (!faces[faceColor].equals(piece.userData[faceColor])) {
+                    return false
+                }
+            }
+        }
+    }
+    
+    return true
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+function render() {
+    renderer.render(scene, camera)
+}
+
+function pushRandomMoves(num) {
+    for(let i = 0; i < num; i++) {
+        const axis = axes[Math.floor((Math.random() * 3))]
+        const offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
+        const dir = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1        
+        state.movesQueue.push(new Move(axis, offset, dir))
+    }
 }
 
 function init() {
@@ -332,208 +558,6 @@ function init() {
     }, undefined, function (error) {
         console.error(error)
     })
-}
-
-const clock = new THREE.Clock();
-const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x333333);
-
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.x = 2.5
-camera.position.y = 3
-camera.position.z = 6
-
-const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
-renderer.setPixelRatio(window.devicePixelRatio)
-renderer.setSize(window.innerWidth, window.innerHeight)
-renderer.gammaInput = true
-renderer.gammaOutput = true
-
-const orbit = new THREE.OrbitControls(camera, renderer.domElement)
-orbit.update()
-orbit.addEventListener('change', render)
-
-const container = document.getElementById('canvas')
-container.appendChild(renderer.domElement)
-window.addEventListener('resize', onWindowResize, false)
-document.querySelector('#randomize').addEventListener('click', function (e) { 
-    pushRandomMoves(5)
-    state.currently = STATE.SHUFFE
-    doNextMove()
- })
-document.querySelector('#solve').addEventListener('click', function (e) { 
-    state.movesQueue = [] // reset queue
-    state.currently = STATE.SOLVE
-    doNextMove()
-})
-
-function startRotation(move) {
-    if (state.isMoving) return
-    // console.log('startRotation: ', axis, offset, direction)
-
-    state.isMoving = true
-    state.onAxis = move.axis.clone()
-    state.onAxis.multiplyScalar(move.offset)
-    state.t = 0.0
-    state.direction = move.direction
-    state.offset = move.offset
-
-    // play a sound
-    const i = Math.floor((Math.random() * 6) + 1)
-    const filename = 'sounds/rubik-0'+i+'.wav'
-    const audio = new Audio(filename)
-    audio.play()
-}
-
-function animate() {
-    const axis = state.onAxis
-    let dt = clock.getDelta() * state.speed
-    if (axis) {
-        state.t += dt
-        if (state.t >= 1) {
-            dt -= state.t - 1.0
-        }
-
-        for (const piece of state.grid) {
-            if ((axis.x && piece.positionBeforeAnimation.x == axis.x) ||
-                (axis.y && piece.positionBeforeAnimation.y == axis.y) ||
-                (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
-                piece.rotateOnWorldAxis(axis, TURN * dt * -state.direction)
-                piece.dynamicPosition.applyAxisAngle(axis, TURN * dt * -state.direction)
-            }
-        }
-
-        // On move stop
-        if (state.t >= 1 && state.isMoving) {
-            for (let piece of state.grid) {
-                // correct rounding errors
-                piece.positionBeforeAnimation = piece.dynamicPosition.round().clone()
-                if ((axis.x && piece.positionBeforeAnimation.x == axis.x) || 
-                    (axis.y && piece.positionBeforeAnimation.y == axis.y) || 
-                    (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
-                    for(const faceColor of FACE_COLORS) {
-                        if(piece.userData[faceColor]) {
-                            piece.userData[faceColor].applyAxisAngle(axis, TURN * -state.direction).round()
-                        }
-                    }
-                    
-                    // this is needed so we also track the piece rotation for later checks
-                    piece.userData.right.applyAxisAngle(axis, TURN * -state.direction).round()
-                    piece.userData.up.applyAxisAngle(axis, TURN * -state.direction).round()
-                    piece.userData.front.applyAxisAngle(axis, TURN * -state.direction).round()
-                }
-            }
-
-            state.onAxis = null
-            state.isMoving = false
-            doNextMove()
-        }
-    }
-
-    requestAnimationFrame(animate)
-    renderer.render(scene, camera)
-}
-
-function isPieceInPlace(x, y, z) {
-    const name = `${x},${y},${z}`
-    const piece = state.grid.find(piece => piece.name == name)
-    const isCorrectPosition         = piece.dynamicPosition.equals(piece.solvedPosition)
-    const isCorrectRightOrientation = piece.userData.right.equals(RIGHT)
-    const isCorrectUpOrientation    = piece.userData.up.equals(UP)
-    const isCorrectFrontOrientation = piece.userData.front.equals(FRONT)
-    return isCorrectPosition && isCorrectRightOrientation && isCorrectUpOrientation && isCorrectFrontOrientation;
-}
-
-function getNextPhase() {
-    if(!isPieceInPlace( 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
-    if(!isPieceInPlace( 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
-    if(!isPieceInPlace(-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
-    if(!isPieceInPlace( 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
-    if(!isPieceInPlace(-1, 1, 1)) return SOLVER_PHASE.T_1;
-    if(!isPieceInPlace( 1, 1, 1)) return SOLVER_PHASE.T_2;
-    if(!isPieceInPlace(-1, 1,-1)) return SOLVER_PHASE.T_3;
-    if(!isPieceInPlace( 1, 1,-1)) return SOLVER_PHASE.T_4;
-
-    return SOLVER_PHASE.COMPLETE;
-}
-
-function doNextMove() {
-    const next = getNextPhase()
-    console.log('PHASE:', next)
-
-    if (state.currently == STATE.SHUFFE) {
-        if (state.movesQueue.length) {
-            console.log('moves left ', state.movesQueue.length)
-            // pop move from queue and perform it
-            startRotation(state.movesQueue.pop())
-        } else {
-            state.currently = STATE.IDLE
-        }
-    } else if (next == SOLVER_PHASE.COMPLETE) {
-        state.currently = STATE.IDLE
-        // do nothing
-    } else if (state.currently == STATE.SOLVE) {
-        if (state.movesQueue.length) {
-            // pop move from queue and perform it
-            startRotation(state.movesQueue.pop())
-        } else {
-            // pump moves onto queue if queue is empty
-            switch (next) {
-                case SOLVER_PHASE.WHITE_CROSS_1:
-
-                    break
-                case SOLVER_PHASE.WHITE_CROSS_2:
-
-                    break
-                case SOLVER_PHASE.WHITE_CROSS_3:
-
-                    break
-                case SOLVER_PHASE.WHITE_CROSS_4:
-
-                    break
-            }
-        }
-    }
-}
-
-function isCubeSolved() {
-    const faces = {}
-    for (const piece of state.grid) {        
-        for(const faceColor of FACE_COLORS) {
-            if(piece.userData[faceColor]) {
-                 // init cache:
-                if(!faces[faceColor]) {
-                    faces[faceColor] = piece.userData[faceColor].clone()
-                }
-                
-                // compare with cache:
-                if (!faces[faceColor].equals(piece.userData[faceColor])) {
-                    return false
-                }
-            }
-        }
-    }
-    
-    return true
-}
-
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
-    renderer.setSize(window.innerWidth, window.innerHeight)
-}
-
-function render() {
-    renderer.render(scene, camera)
-}
-
-function pushRandomMoves(num) {
-    for(let i = 0; i < num; i++) {
-        const axis = axes[Math.floor((Math.random() * 3))]
-        const offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-        const dir = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1        
-        state.movesQueue.push(new Move(axis, offset, dir))
-    }
 }
 
 init()
