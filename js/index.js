@@ -45,12 +45,14 @@ class Move {
         this.axis = axis.clone();
         this.offset = offset;
         this.direction = direction;
+        console.assert(offset == 1 || offset == -1, 'Offset value is invalid')
+        console.assert(direction == 1 || direction == -1, 'Direction value is invalid')
     }
 }
 
 const STATE_IDLE = 'IDLE';
-const STATE_SOLVE = 'SOLVE';
-const STATE_SHUFFLE = "SHUFFLE";
+const STATE_SOLVE = 'SOLVING';
+const STATE_SHUFFLE = "SHUFFLING";
 
 const state = {
     grid: [],
@@ -112,7 +114,7 @@ document.querySelector('#randomize').addEventListener('click', function (e) {
     pushRandomMoves(5)
     state.currently = STATE_SHUFFLE
     doNextMove()
- })
+})
 document.querySelector('#solve').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
     state.currently = STATE_SOLVE
@@ -208,13 +210,13 @@ function isPieceInPlace(ref, x, y, z) {
 
 function getNextPhase(ref) {
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
-    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
-    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
-    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
-    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
-    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
-    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
-    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
+    // if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
+    // if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
+    // if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
+    // if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
+    // if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
+    // if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
+    // if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
     // add more rules
 
     ref.piece = null
@@ -251,33 +253,41 @@ function doNextMove() {
             // pump moves onto queue if queue is empty
             switch (next) {
                 case SOLVER_PHASE.WHITE_CROSS_1:
-                    console.log(piece.dynamicPosition.y)
-                    // if piece is on level y==1 and rotation is not correct then 
-                    // rotate it on x/z axis 2 times to get it on y==-1
-                    if(piece.dynamicPosition.y == 1 && !ref.rotationOk) {
-
-                    }
-
-                    // if piece is on level y==0 then rotate it on x axis 1 times to get it on y==-1
-                    else if (piece.dynamicPosition.y == 0) {
-                        if(piece.dynamicPosition.z == 1) {
-                            console.log("piece.userData.WHITE", piece.userData.WHITE)
-                            if(piece.userData.RED.equals(FRONT)) {
-                                state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
-                            } else {
-                                state.movesQueue.push(new Move(FRONT, -1, piece.dynamicPosition.x))
-                                state.movesQueue.push(new Move(UP, -1, 1))
-                                state.movesQueue.push(new Move(RIGHT, 1, 1))
+                    {
+                        if(piece.dynamicPosition.y == 1) { // top
+                            if(piece.dynamicPosition.z == -1) { // back
+                                state.movesQueue.push(new Move(UP, 1, -1)) // bring to side
+                            } else if(piece.dynamicPosition.z == 0) {
+                                state.movesQueue.push(new Move(UP, 1, piece.dynamicPosition.x)) // bring to front
+                            } else if(!ref.rotationOk) {
+                                state.movesQueue.push(new Move(FRONT, -1, 1)) // bring to front
                             }
-                        } else {
-                            console.error('handle sdfsgg')
-                        }
-                    } else { // if piece is on level y==-1 ... 
-                        if(piece.userData.RED.equals(FRONT)) {
-                            state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
-                            // state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
-                        } else {
-                            console.error('handle sadf')
+                        } else if (piece.dynamicPosition.y == 0) {
+                            if(piece.dynamicPosition.z == 1) {
+                                if(piece.userData.RED.equals(FRONT)) {
+                                    // if piece is on level y==0 then rotate it on x axis 1 times to get it on y==-1
+                                    state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
+                                } else {
+                                    state.movesQueue.push(new Move(FRONT, -1, piece.dynamicPosition.x))
+                                    state.movesQueue.push(new Move(UP, -1, 1))
+                                    state.movesQueue.push(new Move(RIGHT, 1, 1))
+                                }
+                            } else {
+                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
+                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
+                            }
+                        } else { // if piece is on level y==-1 ... 
+                            if(piece.userData.RED.equals(FRONT)) {
+                                state.movesQueue.push(new Move(FRONT, -1, -1))
+                            } else {
+                                if(piece.dynamicPosition.z == -1) {
+                                    state.movesQueue.push(new Move(UP, -1, 1))
+                                } else if(piece.dynamicPosition.z == 0) {
+                                    state.movesQueue.push(new Move(UP, -1, 1))
+                                } else if(!ref.rotationOk) {
+                                    state.movesQueue.push(new Move(FRONT, -1, 1))
+                                }
+                            }
                         }
                     }                    
                     break
