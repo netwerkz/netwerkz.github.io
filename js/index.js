@@ -105,7 +105,7 @@ scene.background = new THREE.Color(0x333333);
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
 camera.position.x = 2
 camera.position.y = 2.5
-camera.position.z = 5
+camera.position.z = -5
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
@@ -238,8 +238,6 @@ function doNextMove() {
     const ref = { piece: null, rotationOk: false };
     const next = getNextPhase(ref)
     const piece = ref.piece
-    console.log('PHASE:', next)
-    console.log('STATE:', state.currently)
 
     if (state.currently == STATE_SHUFFLE) {
 
@@ -250,10 +248,6 @@ function doNextMove() {
     } else if (next == SOLVER_PHASE.COMPLETE) {
 
         state.currently = STATE_IDLE
-
-        console.log('----- SOLVER_PHASE.COMPLETE')
-        
-        // do nothing
 
     } else if (state.currently == STATE_SOLVE) {
 
@@ -299,9 +293,9 @@ function doNextMove() {
                 case SOLVER_PHASE.WHITE_CROSS_2:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
-                            if(piece.dynamicPosition.z == 0) {
+                            if(piece.dynamicPosition.z == 0) { // middle
                                 state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
-                            } else if(!ref.rotationOk) {
+                            } else if(!ref.rotationOk) { // fix rotation
                                 state.movesQueue.push(BackCW)
                                 state.movesQueue.push(BackCW)
                                 state.movesQueue.push(BottomCW)
@@ -309,13 +303,27 @@ function doNextMove() {
                                 state.movesQueue.push(BackCCW)
                             }
                         } else if (piece.dynamicPosition.y == 0) { // middle
-                            if(piece.dynamicPosition.z == -1) {
-
-                            } else { // z == 1
-                                                                
+                            if(piece.dynamicPosition.z == -1) { // back
+                                if(piece.userData.ORANGE.equals(BACK)) {
+                                    state.movesQueue.push(new Move(BACK, -1, piece.dynamicPosition.x))
+                                } else {
+                                    state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                                    state.movesQueue.push(new Move(DOWN, 1, piece.dynamicPosition.x))
+                                }
+                            } else { // front
+                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
                             }
                         } else { // bottom
-
+                            if(piece.dynamicPosition.z != -1) { // bring to back
+                                state.movesQueue.push(BottomCW)
+                            } else if (!piece.userData.ORANGE.equals(BACK)) { // fix rotation
+                                state.movesQueue.push(BackCW)
+                                state.movesQueue.push(RightCW)
+                                state.movesQueue.push(BottomCW)
+                            } else { // bring up
+                                state.movesQueue.push(BackCW)
+                                state.movesQueue.push(BackCW)
+                            }
                         }
                     }
                     break
@@ -368,10 +376,8 @@ function render() {
 
 function pushRandomMoves(num) {
     for(let i = 0; i < num; i++) {
-        const axis = axes[Math.floor((Math.random() * 3))]
-        const offset = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1
-        const dir = Math.floor((Math.random() * 2) + 1) == 1 ? 1 : -1        
-        state.movesQueue.push(new Move(axis, offset, dir))
+        const moves = [RightCW, RightCCW, LeftCW, LeftCCW, FrontCW, FrontCCW, BackCW, BackCCW, TopCW, TopCCW, BottomCW, BottomCCW]
+        state.movesQueue.push(moves[Math.floor(Math.random() * moves.length)])
     }
 }
 
