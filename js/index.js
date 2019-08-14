@@ -1,9 +1,6 @@
-// imports 
 const Vector3 = THREE.Vector3
 const Vector2 = THREE.Vector2
 const Color = THREE.Color
-
-// constants
 const RADIANS = Math.PI / 180
 const TURN = RADIANS * 90
 const ORIGIN = new Vector3(0, 0, 0)
@@ -50,13 +47,26 @@ class Move {
     }
 }
 
+const LeftCW = new Move(LEFT, 1, 1)
+const LeftCCW = new Move(LEFT, 1, -1)
+const RightCW = new Move(LEFT, -1, 1)
+const RightCCW = new Move(LEFT, -1, -1)
+const FrontCW = new Move(FRONT, -1, 1)
+const FrontCCW = new Move(FRONT, -1, -1)
+const BackCW = new Move(FRONT, 1, 1)
+const BackCCW = new Move(FRONT, 1, -1)
+const TopCW = new Move(UP, 1, 1)
+const TopCCW = new Move(UP, 1, -1)
+const BottomCW = new Move(UP, -1, 1)
+const BottomCCW = new Move(UP, -1, -1)
+
 const STATE_IDLE = 'IDLE';
 const STATE_SOLVE = 'SOLVING';
 const STATE_SHUFFLE = "SHUFFLING";
 
 const state = {
     grid: [],
-    speed: 3,
+    speed: 5,
     isMoving: false,
     onAxis: null,
     t: 0.0, // infer float
@@ -210,7 +220,7 @@ function isPieceInPlace(ref, x, y, z) {
 
 function getNextPhase(ref) {
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
-    // if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
+    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
     // if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
     // if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
     // if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
@@ -235,8 +245,6 @@ function doNextMove() {
 
         if (state.movesQueue.length == 0) {
             state.currently = STATE_IDLE
-        } else {
-            console.log('moves left ', state.movesQueue.length)
         }
 
     } else if (next == SOLVER_PHASE.COMPLETE) {
@@ -256,43 +264,60 @@ function doNextMove() {
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             if(piece.dynamicPosition.z == -1) { // back
-                                state.movesQueue.push(new Move(UP, 1, -1)) // bring to side
+                                state.movesQueue.push(TopCCW) // bring to side
                             } else if(piece.dynamicPosition.z == 0) {
                                 state.movesQueue.push(new Move(UP, 1, piece.dynamicPosition.x)) // bring to front
                             } else if(!ref.rotationOk) {
-                                state.movesQueue.push(new Move(FRONT, -1, 1)) // bring to front
+                                state.movesQueue.push(FrontCW) // bring to front
                             }
-                        } else if (piece.dynamicPosition.y == 0) {
+                        } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.z == 1) {
                                 if(piece.userData.RED.equals(FRONT)) {
-                                    // if piece is on level y==0 then rotate it on x axis 1 times to get it on y==-1
                                     state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
                                 } else {
                                     state.movesQueue.push(new Move(FRONT, -1, piece.dynamicPosition.x))
-                                    state.movesQueue.push(new Move(UP, -1, 1))
-                                    state.movesQueue.push(new Move(RIGHT, 1, 1))
+                                    state.movesQueue.push(BottomCW)
+                                    state.movesQueue.push(RightCW)
                                 }
                             } else {
                                 state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
                                 state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
                             }
-                        } else { // if piece is on level y==-1 ... 
+                        } else { // bottom
                             if(piece.userData.RED.equals(FRONT)) {
-                                state.movesQueue.push(new Move(FRONT, -1, -1))
+                                state.movesQueue.push(FrontCCW)
                             } else {
-                                if(piece.dynamicPosition.z == -1) {
-                                    state.movesQueue.push(new Move(UP, -1, 1))
-                                } else if(piece.dynamicPosition.z == 0) {
-                                    state.movesQueue.push(new Move(UP, -1, 1))
+                                if(piece.dynamicPosition.z == -1 || piece.dynamicPosition.z == 0) {
+                                    state.movesQueue.push(BottomCW)
                                 } else if(!ref.rotationOk) {
-                                    state.movesQueue.push(new Move(FRONT, -1, 1))
+                                    state.movesQueue.push(FrontCW)
                                 }
                             }
                         }
                     }                    
                     break
                 case SOLVER_PHASE.WHITE_CROSS_2:
+                    {
+                        if(piece.dynamicPosition.y == 1) { // top
+                            if(piece.dynamicPosition.z == 0) {
+                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                            } else if(!ref.rotationOk) {
+                                state.movesQueue.push(BackCW)
+                                state.movesQueue.push(BackCW)
+                                state.movesQueue.push(BottomCW)
+                                state.movesQueue.push(LeftCW)
+                                state.movesQueue.push(BackCCW)
+                            }
+                        } else if (piece.dynamicPosition.y == 0) { // middle
+                            if(piece.dynamicPosition.z == -1) {
 
+                            } else { // z == 1
+                                                                
+                            }
+                        } else { // bottom
+
+                        }
+                    }
                     break
                 case SOLVER_PHASE.WHITE_CROSS_3:
 

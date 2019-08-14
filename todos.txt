@@ -1,3 +1,4 @@
+- ease animation
 - implement solver
 - skymap
 - extrude color face in blender
