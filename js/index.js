@@ -66,11 +66,9 @@ const STATE_SHUFFLE = "SHUFFLING";
 
 const state = {
     grid: [],
-    speed: 5,
-    isMoving: false,
     onAxis: null,
     t: 0.0, // infer float
-    currently: STATE_IDLE,
+    is: STATE_IDLE,
     movesQueue: []
 }
 
@@ -103,9 +101,9 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.x = 2
+camera.position.x = -2
 camera.position.y = 2.5
-camera.position.z = -5
+camera.position.z = 5
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
@@ -121,22 +119,22 @@ const container = document.getElementById('canvas')
 container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) { 
-    pushRandomMoves(5)
-    state.currently = STATE_SHUFFLE
+    pushRandomMoves(10)
+    state.is = STATE_SHUFFLE
     doNextMove()
 })
 document.querySelector('#solve').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
-    state.currently = STATE_SOLVE
+    state.is = STATE_SOLVE
     doNextMove()
 })
 const info = document.querySelector('#info')
+const speedInputs = [...document.querySelectorAll('[name="speed"]')]
 
 function startRotation(move) {
-    if (state.isMoving) return
+    if (state.t) return
     // console.log('startRotation: ', axis, offset, direction)
 
-    state.isMoving = true
     state.onAxis = move.axis.clone()
     state.onAxis.multiplyScalar(move.offset)
     state.t = 0.0
@@ -152,11 +150,11 @@ function startRotation(move) {
 
 function animate() {
     const axis = state.onAxis
-    let dt = clock.getDelta() * state.speed
+    let dt = clock.getDelta() * speedInputs.find(el => el.checked).value
     if (axis) {
         state.t += dt
         if (state.t >= 1) {
-            dt -= state.t - 1.0
+            dt -= state.t - 1.0 // clamp overflow
         }
 
         for (const piece of state.grid) {
@@ -169,7 +167,7 @@ function animate() {
         }
 
         // On move stop
-        if (state.t >= 1 && state.isMoving) {
+        if (state.t >= 1) {
             for (let piece of state.grid) {
                 // correct rounding errors
                 piece.positionBeforeAnimation = piece.dynamicPosition.round().clone()
@@ -190,17 +188,17 @@ function animate() {
             }
 
             state.onAxis = null
-            state.isMoving = false
+            state.t = 0
             doNextMove()
         }
     }
 
     const onAxisText = state.onAxis ? '[' + state.onAxis.x + ',' + state.onAxis.y + ',' + state.onAxis.z + ']': null
-    info.innerHTML = 'STATE: ' + state.currently 
-    info.innerHTML += '<br> SPEED: ' + state.speed + '/s'
+    info.innerHTML = 'STATE: ' + state.is 
+    info.innerHTML += '<br> SPEED: ' + speedInputs.find(el => el.checked).value + '/s'
     info.innerHTML += '<br> AXIS: ' + onAxisText
     info.innerHTML += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
-    info.innerHTML += '<br> QUEUE: ' + state.movesQueue.length + ' moves'
+    info.innerHTML += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
     
     requestAnimationFrame(animate)
     renderer.render(scene, camera)
@@ -221,7 +219,7 @@ function isPieceInPlace(ref, x, y, z) {
 function getNextPhase(ref) {
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
     if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
-    // if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
+    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
     // if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
     // if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
     // if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
@@ -239,17 +237,17 @@ function doNextMove() {
     const next = getNextPhase(ref)
     const piece = ref.piece
 
-    if (state.currently == STATE_SHUFFLE) {
+    if (state.is == STATE_SHUFFLE) {
 
         if (state.movesQueue.length == 0) {
-            state.currently = STATE_IDLE
+            state.is = STATE_IDLE
         }
 
     } else if (next == SOLVER_PHASE.COMPLETE) {
 
-        state.currently = STATE_IDLE
+        state.is = STATE_IDLE
 
-    } else if (state.currently == STATE_SOLVE) {
+    } else if (state.is == STATE_SOLVE) {
 
         if (state.movesQueue.length == 0) {
             // pump moves onto queue if queue is empty
@@ -294,41 +292,65 @@ function doNextMove() {
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             if(piece.dynamicPosition.z == 0) { // middle
-                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
                             } else if(!ref.rotationOk) { // fix rotation
-                                state.movesQueue.push(BackCW)
-                                state.movesQueue.push(BackCW)
-                                state.movesQueue.push(BottomCW)
-                                state.movesQueue.push(LeftCW)
-                                state.movesQueue.push(BackCCW)
+                                rotate(BackCW)
+                                rotate(BackCW)
+                                rotate(BottomCW)
+                                rotate(LeftCW)
+                                rotate(BackCCW)
                             }
                         } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.z == -1) { // back
                                 if(piece.userData.ORANGE.equals(BACK)) {
-                                    state.movesQueue.push(new Move(BACK, -1, piece.dynamicPosition.x))
+                                    rotate(new Move(BACK, -1, piece.dynamicPosition.x))
                                 } else {
-                                    state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
-                                    state.movesQueue.push(new Move(DOWN, 1, piece.dynamicPosition.x))
+                                    rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                                    rotate(new Move(DOWN, 1, piece.dynamicPosition.x))
                                 }
                             } else { // front
-                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
                             }
                         } else { // bottom
                             if(piece.dynamicPosition.z != -1) { // bring to back
-                                state.movesQueue.push(BottomCW)
+                                rotate(BottomCW)
                             } else if (!piece.userData.ORANGE.equals(BACK)) { // fix rotation
-                                state.movesQueue.push(BackCW)
-                                state.movesQueue.push(RightCW)
-                                state.movesQueue.push(BottomCW)
+                                rotate(BackCW)
+                                rotate(RightCW)
+                                rotate(BottomCW)
                             } else { // bring up
-                                state.movesQueue.push(BackCW)
-                                state.movesQueue.push(BackCW)
+                                rotate(BackCW)
+                                rotate(BackCW)
                             }
                         }
                     }
                     break
                 case SOLVER_PHASE.WHITE_CROSS_3:
-
+                    {
+                        if(piece.dynamicPosition.y == 1) { // top
+                            rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                            rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                        } else if (piece.dynamicPosition.y == 0) { // middle
+                            if(piece.userData.GREEN.equals(LEFT)) {
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, -piece.dynamicPosition.z))
+                            } else {
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
+                            }                            
+                        } else { // bottom
+                            if(piece.userData.GREEN.equals(LEFT)) {
+                                rotate(LeftCW)
+                                rotate(LeftCW)
+                            } else if(piece.dynamicPosition.x ==  1) { // bring to left
+                                rotate(BottomCW)
+                                rotate(BottomCW)
+                            } else { // fix rotation
+                                rotate(BottomCW)
+                                rotate(FrontCW)
+                                rotate(LeftCCW)
+                                rotate(FrontCW)
+                            }
+                        }
+                    }
                     break
                 case SOLVER_PHASE.WHITE_CROSS_4:
 
@@ -341,6 +363,10 @@ function doNextMove() {
         // deque next move and start it
         startRotation(state.movesQueue.shift())
     }
+}
+
+function rotate(move) { // wrapper
+    state.movesQueue.push(move)
 }
 
 function isCubeSolved() {
