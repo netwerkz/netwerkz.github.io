@@ -1,17 +1,17 @@
-const Vector3 = THREE.Vector3
-const Vector2 = THREE.Vector2
-const Color = THREE.Color
-const RADIANS = Math.PI / 180
-const TURN = RADIANS * 90
-const ORIGIN = new Vector3(0, 0, 0)
-const RIGHT = new Vector3(1, 0, 0)
-const LEFT = new Vector3(-1, 0, 0)
-const UP = new Vector3(0, 1, 0)
-const DOWN = new Vector3(0, -1, 0)
-const FRONT = new Vector3(0, 0, -1)
-const BACK = new Vector3(0, 0, 1)
+const Vector3   = THREE.Vector3
+const Vector2   = THREE.Vector2
+const Color     = THREE.Color
+const RADIANS   = Math.PI / 180
+const TURN      = RADIANS * 90
+const ORIGIN    = new Vector3(0, 0, 0)
+const RIGHT     = new Vector3(1, 0, 0)
+const LEFT      = new Vector3(-1, 0, 0)
+const UP        = new Vector3(0, 1, 0)
+const DOWN      = new Vector3(0, -1, 0)
+const FRONT     = new Vector3(0, 0, -1)
+const BACK      = new Vector3(0, 0, 1)
 const FACE_COLORS = ['RED', 'ORANGE', 'GREEN', 'BLUE', 'WHITE', 'YELLOW']
-const axes = [RIGHT, FRONT, UP]
+const axes      = [RIGHT, FRONT, UP]
 const colorsHexa = {
     RED: 0xff0000,
     GREEN: 0x00aa00,
@@ -47,21 +47,21 @@ class Move {
     }
 }
 
-const LeftCW = new Move(LEFT, 1, 1)
-const LeftCCW = new Move(LEFT, 1, -1)
-const RightCW = new Move(LEFT, -1, 1)
-const RightCCW = new Move(LEFT, -1, -1)
-const FrontCW = new Move(FRONT, -1, 1)
-const FrontCCW = new Move(FRONT, -1, -1)
-const BackCW = new Move(FRONT, 1, 1)
-const BackCCW = new Move(FRONT, 1, -1)
-const TopCW = new Move(UP, 1, 1)
-const TopCCW = new Move(UP, 1, -1)
-const BottomCW = new Move(UP, -1, 1)
+const LeftCW    = new Move(LEFT, 1, 1)
+const LeftCCW   = new Move(LEFT, 1, -1)
+const RightCW   = new Move(LEFT, -1, 1)
+const RightCCW  = new Move(LEFT, -1, -1)
+const FrontCW   = new Move(FRONT, -1, 1)
+const FrontCCW  = new Move(FRONT, -1, -1)
+const BackCW    = new Move(FRONT, 1, 1)
+const BackCCW   = new Move(FRONT, 1, -1)
+const TopCW     = new Move(UP, 1, 1)
+const TopCCW    = new Move(UP, 1, -1)
+const BottomCW  = new Move(UP, -1, 1)
 const BottomCCW = new Move(UP, -1, -1)
 
-const STATE_IDLE = 'IDLE';
-const STATE_SOLVE = 'SOLVING';
+const STATE_IDLE    = 'IDLE';
+const STATE_SOLVE   = 'SOLVING';
 const STATE_SHUFFLE = "SHUFFLING";
 
 const state = {
@@ -78,10 +78,10 @@ const SOLVER_PHASE = {
     WHITE_CROSS_2: 'orange white',
     WHITE_CROSS_3: 'green white',
     WHITE_CROSS_4: 'blue white',
-    T_1: 'white red green corner',
-    T_2: 'white red blue corner',
-    T_3: 'white orange green corner',
-    T_4: 'white orange blue corner',
+    T_1: 'white red green',
+    T_2: 'white red blue',
+    T_3: 'white orange green',
+    T_4: 'white orange blue',
     SECOND_LAYER_1: 9, // if wrong orientation, do it twice
     SECOND_LAYER_2: 10, // if wrong orientation, do it twice
     SECOND_LAYER_3: 11, // if wrong orientation, do it twice
@@ -199,6 +199,7 @@ function animate() {
     info.innerHTML += '<br> AXIS: ' + onAxisText
     info.innerHTML += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
     info.innerHTML += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
+    info.innerHTML += '<br> STEP: ' + getNextPhase()
     
     requestAnimationFrame(animate)
     renderer.render(scene, camera)
@@ -216,12 +217,12 @@ function isPieceInPlace(ref, x, y, z) {
     return isCorrectPosition && ref.rotationOk
 }
 
-function getNextPhase(ref) {
+function getNextPhase(ref = {}) {
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
     if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
     if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
     if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
-    // if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
+    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
     // if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
     // if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
     // if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
