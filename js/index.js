@@ -101,7 +101,7 @@ const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333);
 
 const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.x = -2
+camera.position.x = 2
 camera.position.y = 2.5
 camera.position.z = 5
 
@@ -220,7 +220,7 @@ function getNextPhase(ref) {
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
     if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
     if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
-    // if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
+    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
     // if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
     // if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
     // if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
@@ -337,7 +337,7 @@ function doNextMove() {
                                 rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
                             }                            
                         } else { // bottom
-                            if(piece.userData.GREEN.equals(LEFT)) {
+                            if(piece.userData.GREEN.equals(LEFT)) { // bring to top
                                 rotate(LeftCW)
                                 rotate(LeftCW)
                             } else if(piece.dynamicPosition.x ==  1) { // bring to left
@@ -353,7 +353,38 @@ function doNextMove() {
                     }
                     break
                 case SOLVER_PHASE.WHITE_CROSS_4:
-
+                    {
+                        if(piece.dynamicPosition.y == 1) { // top
+                            // fix rotation
+                            rotate(RightCW)
+                            rotate(RightCW)
+                            rotate(BottomCCW)
+                            rotate(FrontCCW)
+                            rotate(RightCW)
+                            rotate(FrontCW)
+                        } else if (piece.dynamicPosition.y == 0) { // middle
+                            if(piece.dynamicPosition.x == -1) { // bring down
+                                rotate(new Move(RIGHT, -1, piece.dynamicPosition.z))
+                            } else if(piece.userData.BLUE.equals(RIGHT)) { // bring up
+                                rotate(new Move(RIGHT, 1, piece.dynamicPosition.z))
+                            } else { // bring down
+                                rotate(new Move(RIGHT, 1, -piece.dynamicPosition.z))
+                            }
+                        } else { // bottom
+                            if(piece.dynamicPosition.x == -1) { // bring to front
+                                rotate(BottomCW)
+                            } else if(piece.dynamicPosition.x == 0) { // bring to right
+                                rotate(new Move(UP, -1, piece.dynamicPosition.z))
+                            } else if(piece.userData.BLUE.equals(RIGHT)) { // bring up
+                                rotate(RightCW)
+                            } else { // fix rotation
+                                rotate(BottomCCW)
+                                rotate(FrontCCW)
+                                rotate(RightCW)
+                                rotate(FrontCW)
+                            }
+                        }
+                    }
                     break
             }
         }
