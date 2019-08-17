@@ -128,6 +128,10 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.is = STATE_SOLVE
     doNextMove()
 })
+document.querySelector('#stop').addEventListener('click', function (e) { 
+    state.movesQueue = [] // reset queue
+    state.is = STATE_IDLE
+})
 const info = document.querySelector('#info')
 const speedInputs = [...document.querySelectorAll('[name="speed"]')]
 
@@ -223,9 +227,9 @@ function getNextPhase(ref = {}) {
     if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
     if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
     if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
-    // if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
-    // if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
-    // if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
+    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
+    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
+    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
     // add more rules
 
     ref.piece = null
@@ -239,19 +243,13 @@ function doNextMove() {
     const piece = ref.piece
 
     if (state.is == STATE_SHUFFLE) {
-
-        if (state.movesQueue.length == 0) {
+        if (state.movesQueue.length == 0) { // done shuffling
             state.is = STATE_IDLE
         }
-
-    } else if (next == SOLVER_PHASE.COMPLETE) {
-
+    } else if (next == SOLVER_PHASE.COMPLETE) { // done solving
         state.is = STATE_IDLE
-
     } else if (state.is == STATE_SOLVE) {
-
-        if (state.movesQueue.length == 0) {
-            // pump moves onto queue if queue is empty
+        if (state.movesQueue.length == 0) { // pump moves onto queue if queue is empty
             switch (next) {
                 case SOLVER_PHASE.WHITE_CROSS_1:
                     {
@@ -366,6 +364,7 @@ function doNextMove() {
                         } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.x == -1) { // bring down
                                 rotate(new Move(RIGHT, -1, piece.dynamicPosition.z))
+                                rotate(BottomCW)
                             } else if(piece.userData.BLUE.equals(RIGHT)) { // bring up
                                 rotate(new Move(RIGHT, 1, piece.dynamicPosition.z))
                             } else { // bring down
@@ -387,6 +386,138 @@ function doNextMove() {
                         }
                     }
                     break
+                case SOLVER_PHASE.T_1: // -1, 1, 1 (white red green)
+                    {
+                        if(piece.dynamicPosition.y == -1) {
+                            if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != -1) {
+                                rotate(BottomCW) // bring under correct position
+                            } else { // bring up in correct position
+                                rotate(BottomCW)
+                                rotate(LeftCW)
+                                rotate(BottomCCW)
+                                rotate(LeftCCW)
+                            }
+                        } else {
+                            if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
+                                rotate(RightCCW)
+                                rotate(BottomCCW)
+                                rotate(RightCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
+                                rotate(RightCW)
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
+                                rotate(LeftCCW)
+                                rotate(BottomCCW)
+                                rotate(LeftCW)
+                            } else { // fix rotation
+                                rotate(BottomCW)
+                                rotate(LeftCW)
+                                rotate(BottomCCW)
+                                rotate(LeftCCW)
+                            }
+                        }
+                    }
+                    break;
+                case SOLVER_PHASE.T_2: // 1, 1, 1 (white red blue)
+                    {
+                        if(piece.dynamicPosition.y == -1) {
+                            if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != 1) {
+                                rotate(BottomCW) // bring under correct position
+                            } else { // bring up in correct position
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                                rotate(BottomCW)
+                                rotate(RightCW)
+                            }
+                        } else {
+                            if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
+                                rotate(LeftCW)
+                                rotate(BottomCW)
+                                rotate(LeftCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
+                                rotate(RightCW)
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
+                                rotate(LeftCCW)
+                                rotate(BottomCCW)
+                                rotate(LeftCW)
+                            } else { // fix rotation
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                                rotate(BottomCW)
+                                rotate(RightCW)
+                            }
+                        }
+                    }
+                    break;
+                case SOLVER_PHASE.T_3: // -1, 1, -1 (white orange green)
+                    {
+                        if(piece.dynamicPosition.y == -1) {
+                            if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != -1) {
+                                rotate(BottomCW) // bring under correct position
+                            } else { // bring up in correct position
+                                rotate(BottomCCW)
+                                rotate(LeftCCW)
+                                rotate(BottomCW)
+                                rotate(LeftCW)
+                            }
+                        } else {
+                            if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
+                                rotate(LeftCW)
+                                rotate(BottomCW)
+                                rotate(LeftCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
+                                rotate(RightCW)
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
+                                rotate(RightCCW)
+                                rotate(BottomCCW)
+                                rotate(RightCW)
+                            } else { // fix rotation
+                                rotate(BottomCCW)
+                                rotate(LeftCCW)
+                                rotate(BottomCW)
+                                rotate(LeftCW)
+                            }                            
+                        }
+                    }
+                    break;
+                case SOLVER_PHASE.T_4: // 1, 1, -1 (white orange blue)
+                    {
+                        if(piece.dynamicPosition.y == -1) {
+                            if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != 1) {
+                                rotate(BottomCW) // bring under correct position
+                            } else { // bring up in correct position
+                                rotate(BottomCW)
+                                rotate(RightCW)
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                            }
+                        } else { 
+                            if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
+                                rotate(LeftCCW)
+                                rotate(BottomCCW)
+                                rotate(LeftCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
+                                rotate(LeftCW)
+                                rotate(BottomCW)
+                                rotate(LeftCCW)
+                            } else if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
+                                rotate(RightCCW)
+                                rotate(BottomCCW)
+                                rotate(RightCW)
+                            } else { // fix rotation
+                                rotate(BottomCW)
+                                rotate(RightCW)
+                                rotate(BottomCCW)
+                                rotate(RightCCW)
+                            }                            
+                        }
+                    }
+                    break;
             }
         }
     }
