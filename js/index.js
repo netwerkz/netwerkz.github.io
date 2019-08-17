@@ -1,6 +1,8 @@
-const Vector3   = THREE.Vector3
 const Vector2   = THREE.Vector2
+const Vector3   = THREE.Vector3
+const Vector4   = THREE.Vector4
 const Color     = THREE.Color
+const Group     = THREE.Group
 const RADIANS   = Math.PI / 180
 const TURN      = RADIANS * 90
 const ORIGIN    = new Vector3(0, 0, 0)
@@ -12,6 +14,10 @@ const FRONT     = new Vector3(0, 0, -1)
 const BACK      = new Vector3(0, 0, 1)
 const FACE_COLORS = ['RED', 'ORANGE', 'GREEN', 'BLUE', 'WHITE', 'YELLOW']
 const axes      = [RIGHT, FRONT, UP]
+const transparent = new Color(0,0,0,0)
+let gridX, gridY, gridZ
+const buttons = new Group()
+
 const colorsHexa = {
     RED: 0xff0000,
     GREEN: 0x00aa00,
@@ -19,7 +25,7 @@ const colorsHexa = {
     WHITE: 0xffffff,
     YELLOW: 0xbbbb00,
     ORANGE: 0xff4400,
-    BLACK: 0x000000,
+    BLACK: 0x000000,    
 }
 const materials = {
     // TODO: MeshStandardMaterial
@@ -69,7 +75,8 @@ const state = {
     onAxis: null,
     t: 0.0, // infer float
     is: STATE_IDLE,
-    movesQueue: []
+    movesQueue: [],
+    countMoves: 0
 }
 
 const SOLVER_PHASE = {
@@ -100,10 +107,25 @@ const clock = new THREE.Clock();
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333);
 
-const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
-camera.position.x = 2
-camera.position.y = 2.5
-camera.position.z = 5
+const mainCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
+mainCamera.position.x = 2
+mainCamera.position.y = 2.5
+mainCamera.position.z = 5
+mainCamera.viewport = new Vector4(0, 0, window.innerWidth, window.innerHeight)
+mainCamera.updateMatrixWorld()
+
+const topCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+topCamera.position.x = 0
+topCamera.position.y = 3
+topCamera.position.z = 0
+topCamera.lookAt(0, 0, 0)
+// subcamera.viewport = new THREE.Vector4( Math.floor( x * WIDTH ), Math.floor( y * HEIGHT ), Math.ceil( WIDTH ), Math.ceil( HEIGHT ) );
+topCamera.updateMatrixWorld()
+const cameraHelper = new THREE.CameraHelper(topCamera)
+scene.add(cameraHelper)
+scene.add(topCamera)
+
+// const arrayCamera = new THREE.ArrayCamera([ mainCamera ])
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
@@ -111,7 +133,7 @@ renderer.setSize(window.innerWidth, window.innerHeight)
 renderer.gammaInput = true
 renderer.gammaOutput = true
 
-const orbit = new THREE.OrbitControls(camera, renderer.domElement)
+const orbit = new THREE.OrbitControls(mainCamera, renderer.domElement)
 orbit.update()
 orbit.addEventListener('change', render)
 
@@ -121,19 +143,23 @@ window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) { 
     pushRandomMoves(10)
     state.is = STATE_SHUFFLE
+    state.countMoves = 0
     doNextMove()
 })
 document.querySelector('#solve').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
     state.is = STATE_SOLVE
+    state.countMoves = 0
     doNextMove()
 })
 document.querySelector('#stop').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
+    state.countMoves = 0
     state.is = STATE_IDLE
 })
 const info = document.querySelector('#info')
 const speedInputs = [...document.querySelectorAll('[name="speed"]')]
+const debug = document.querySelector('#debug')
 
 function startRotation(move) {
     if (state.t) return
@@ -198,15 +224,17 @@ function animate() {
     }
 
     const onAxisText = state.onAxis ? '[' + state.onAxis.x + ',' + state.onAxis.y + ',' + state.onAxis.z + ']': null
-    info.innerHTML = 'STATE: ' + state.is 
-    info.innerHTML += '<br> SPEED: ' + speedInputs.find(el => el.checked).value + '/s'
-    info.innerHTML += '<br> AXIS: ' + onAxisText
-    info.innerHTML += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
-    info.innerHTML += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
-    info.innerHTML += '<br> STEP: ' + getNextPhase()
+    let infoText = 'STATE: ' + state.is 
+    infoText += '<br> SPEED: ' + speedInputs.find(el => el.checked).value + '/s'
+    infoText += '<br> AXIS: ' + onAxisText
+    infoText += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
+    infoText += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
+    infoText += '<br> STEP: ' + getNextPhase()
+    infoText += '<br> Solved in ' + state.countMoves + ' moves'
+    info.innerHTML = infoText
     
     requestAnimationFrame(animate)
-    renderer.render(scene, camera)
+    render()
 }
 
 function isPieceInPlace(ref, x, y, z) {
@@ -255,33 +283,33 @@ function doNextMove() {
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             if(piece.dynamicPosition.z == -1) { // back
-                                state.movesQueue.push(TopCCW) // bring to side
+                                rotate(TopCCW) // bring to side
                             } else if(piece.dynamicPosition.z == 0) {
-                                state.movesQueue.push(new Move(UP, 1, piece.dynamicPosition.x)) // bring to front
+                                rotate(new Move(UP, 1, piece.dynamicPosition.x)) // bring to front
                             } else if(!ref.rotationOk) {
-                                state.movesQueue.push(FrontCW) // bring to front
+                                rotate(FrontCW) // bring to front
                             }
                         } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.z == 1) {
                                 if(piece.userData.RED.equals(FRONT)) {
-                                    state.movesQueue.push(new Move(FRONT, -1, -piece.dynamicPosition.x))
+                                    rotate(new Move(FRONT, -1, -piece.dynamicPosition.x))
                                 } else {
-                                    state.movesQueue.push(new Move(FRONT, -1, piece.dynamicPosition.x))
-                                    state.movesQueue.push(BottomCW)
-                                    state.movesQueue.push(RightCW)
+                                    rotate(new Move(FRONT, -1, piece.dynamicPosition.x))
+                                    rotate(BottomCW)
+                                    rotate(RightCW)
                                 }
                             } else {
-                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
-                                state.movesQueue.push(new Move(RIGHT, piece.dynamicPosition.x, 1))
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, 1))
+                                rotate(new Move(RIGHT, piece.dynamicPosition.x, 1))
                             }
                         } else { // bottom
                             if(piece.userData.RED.equals(FRONT)) {
-                                state.movesQueue.push(FrontCCW)
+                                rotate(FrontCCW)
                             } else {
                                 if(piece.dynamicPosition.z == -1 || piece.dynamicPosition.z == 0) {
-                                    state.movesQueue.push(BottomCW)
+                                    rotate(BottomCW)
                                 } else if(!ref.rotationOk) {
-                                    state.movesQueue.push(FrontCW)
+                                    rotate(FrontCW)
                                 }
                             }
                         }
@@ -523,6 +551,8 @@ function doNextMove() {
     }
     
     if(state.movesQueue.length > 0) {
+        // count solve moves
+        if(state.is == STATE_SOLVE) { state.countMoves++ }
         // deque next move and start it
         startRotation(state.movesQueue.shift())
     }
@@ -554,19 +584,50 @@ function isCubeSolved() {
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight
-    camera.updateProjectionMatrix()
+    mainCamera.aspect = window.innerWidth / window.innerHeight
+    mainCamera.updateProjectionMatrix()
     renderer.setSize(window.innerWidth, window.innerHeight)
 }
 
 function render() {
-    renderer.render(scene, camera)
+    const aspect = window.innerWidth / window.innerHeight
+    const PADDING = 30
+    const ORTHO_SIZE = 200
+
+    gridX.visible = debug.checked
+    gridY.visible = debug.checked
+    gridZ.visible = debug.checked
+    buttons.visible = debug.checked
+
+    // show camera helper
+    cameraHelper.visible = debug.checked
+    { // main camera
+        renderer.setViewport(0, 0, window.innerWidth, window.innerHeight)
+        renderer.setScissor(0, 0, window.innerWidth, window.innerHeight)
+        renderer.setScissorTest(true);
+        // renderer.setClearColor( view.background )
+        mainCamera.aspect = aspect
+        mainCamera.updateProjectionMatrix()
+        renderer.render(scene, mainCamera)
+    }
+
+    // hide camera helper
+    cameraHelper.visible = false
+    { // ortho camera
+        renderer.setViewport(PADDING, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(PADDING, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        // renderer.setClearColor(transparent)
+        topCamera.aspect = aspect
+        topCamera.updateProjectionMatrix()
+        renderer.render(scene, topCamera)
+    }
 }
 
 function pushRandomMoves(num) {
     for(let i = 0; i < num; i++) {
         const moves = [RightCW, RightCCW, LeftCW, LeftCCW, FrontCW, FrontCCW, BackCW, BackCCW, TopCW, TopCCW, BottomCW, BottomCCW]
-        state.movesQueue.push(moves[Math.floor(Math.random() * moves.length)])
+        rotate(moves[Math.floor(Math.random() * moves.length)])
     }
 }
 
@@ -574,7 +635,7 @@ function init() {
     { // setup buttons    
         const spriteMapCW = new THREE.TextureLoader().load("images/cw.png");
         const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png");
-        const buttons = new THREE.Group()
+        
         addButtons(new Vector3(3, 0, 0), 'right')
         addButtons(new Vector3(-3, 0, 0), 'left')
         addButtons(new Vector3(0, 3, 0), 'top')
@@ -634,7 +695,7 @@ function init() {
             x = (x / window.innerWidth) * 2 - 1;
             y = - (y / window.innerHeight) * 2 + 1;
             mouseVector.set(x, y, 0.5);
-            raycaster.setFromCamera(mouseVector, camera);
+            raycaster.setFromCamera(mouseVector, mainCamera);
             return raycaster.intersectObjects(buttons.children, true);
         }
     
@@ -684,11 +745,12 @@ function init() {
 
     { // make 3D axis
         const length = 100
-        makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
-        makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
-        makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
+        gridX = makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
+        gridY = makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
+        gridZ = makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
 
         function makeLine(v1, v2, colorNormalized) {
+            
             const geometry = new THREE.BufferGeometry()
             const mat = new THREE.LineBasicMaterial({ vertexColors: THREE.VertexColors })
             const vertexPosition = []
@@ -706,6 +768,7 @@ function init() {
             geometry.computeBoundingSphere();
             const line = new THREE.Line(geometry, mat)
             scene.add(line)
+            return line
         }
     }
     
