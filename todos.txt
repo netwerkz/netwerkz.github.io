@@ -2,4 +2,3 @@
 - implement solver
 - skymap
 - extrude color face in blender
-- camera for every ortho face

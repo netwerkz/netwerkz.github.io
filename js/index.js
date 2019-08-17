@@ -119,13 +119,50 @@ topCamera.position.x = 0
 topCamera.position.y = 3
 topCamera.position.z = 0
 topCamera.lookAt(0, 0, 0)
-// subcamera.viewport = new THREE.Vector4( Math.floor( x * WIDTH ), Math.floor( y * HEIGHT ), Math.ceil( WIDTH ), Math.ceil( HEIGHT ) );
 topCamera.updateMatrixWorld()
 const cameraHelper = new THREE.CameraHelper(topCamera)
 scene.add(cameraHelper)
 scene.add(topCamera)
 
-// const arrayCamera = new THREE.ArrayCamera([ mainCamera ])
+const bottomCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+bottomCamera.position.x = 0
+bottomCamera.position.y = -3
+bottomCamera.position.z = 0
+bottomCamera.lookAt(0, 0, 0)
+bottomCamera.updateMatrixWorld()
+scene.add(bottomCamera)
+
+const leftCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+leftCamera.position.x = -3
+leftCamera.position.y = 0
+leftCamera.position.z = 0
+leftCamera.lookAt(0, 0, 0)
+leftCamera.updateMatrixWorld()
+scene.add(leftCamera)
+
+const rightCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+rightCamera.position.x = 3
+rightCamera.position.y = 0
+rightCamera.position.z = 0
+rightCamera.lookAt(0, 0, 0)
+rightCamera.updateMatrixWorld()
+scene.add(rightCamera)
+
+const frontCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+frontCamera.position.x = 0
+frontCamera.position.y = 0
+frontCamera.position.z = 3
+frontCamera.lookAt(0, 0, 0)
+frontCamera.updateMatrixWorld()
+scene.add(frontCamera)
+
+const backCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+backCamera.position.x = 0
+backCamera.position.y = 0
+backCamera.position.z = -3
+backCamera.lookAt(0, 0, 0)
+backCamera.updateMatrixWorld()
+scene.add(backCamera)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: false })
 renderer.setPixelRatio(window.devicePixelRatio)
@@ -591,8 +628,8 @@ function onWindowResize() {
 
 function render() {
     const aspect = window.innerWidth / window.innerHeight
-    const PADDING = 30
-    const ORTHO_SIZE = 200
+    const PADDING = 10
+    const ORTHO_SIZE = 150
 
     gridX.visible = debug.checked
     gridY.visible = debug.checked
@@ -613,14 +650,53 @@ function render() {
 
     // hide camera helper
     cameraHelper.visible = false
-    { // ortho camera
+    { // ortho camera top
         renderer.setViewport(PADDING, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
         renderer.setScissor(PADDING, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
         renderer.setScissorTest(true)
-        // renderer.setClearColor(transparent)
         topCamera.aspect = aspect
         topCamera.updateProjectionMatrix()
         renderer.render(scene, topCamera)
+
+        // ortho camera bottom
+        renderer.setViewport(ORTHO_SIZE + PADDING * 2, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(ORTHO_SIZE + PADDING * 2, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        bottomCamera.aspect = aspect
+        bottomCamera.updateProjectionMatrix()
+        renderer.render(scene, bottomCamera)
+
+        // ortho camera left
+        renderer.setViewport(ORTHO_SIZE * 2 + PADDING * 3, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(ORTHO_SIZE * 2 + PADDING * 3, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        leftCamera.aspect = aspect
+        leftCamera.updateProjectionMatrix()
+        renderer.render(scene, leftCamera)
+
+        // ortho camera right
+        renderer.setViewport(ORTHO_SIZE * 3 + PADDING * 4, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(ORTHO_SIZE * 3 + PADDING * 4, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        rightCamera.aspect = aspect
+        rightCamera.updateProjectionMatrix()
+        renderer.render(scene, rightCamera)
+
+        // ortho camera front
+        renderer.setViewport(ORTHO_SIZE * 4 + PADDING * 5, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(ORTHO_SIZE * 4 + PADDING * 5, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        frontCamera.aspect = aspect
+        frontCamera.updateProjectionMatrix()
+        renderer.render(scene, frontCamera)
+
+        // ortho camera back
+        renderer.setViewport(ORTHO_SIZE * 5 + PADDING * 6, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissor(ORTHO_SIZE * 5 + PADDING * 6, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setScissorTest(true)
+        backCamera.aspect = aspect
+        backCamera.updateProjectionMatrix()
+        renderer.render(scene, backCamera)
     }
 }
 

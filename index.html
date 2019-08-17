@@ -27,6 +27,28 @@
           font-family: 'Courier New', Courier, monospace;
           font-weight: bold;
         }
+        .ortho {
+          position: absolute;
+          top: 0;
+          height: 10.5rem;
+          display: flex;
+          width: 60.3rem;          
+          align-items: center;
+          color: white;
+        }
+        .ortho span {
+          flex: 1;
+          text-align: center;
+          text-shadow:
+            3px 3px 0 #000,
+          -1px -1px 0 #000,  
+           1px -1px 0 #000,
+           -1px 1px 0 #000,
+            1px 1px 0 #000;
+          font-size: 2rem;
+          font-family: 'Courier New', Courier, monospace;
+          font-weight: 600;
+        }
     </style>
   </head>
   <body> 
@@ -42,7 +64,15 @@
       <button id="randomize">SHUFFLE <span style="color: blue">✘</span></button>
       <button id="solve">SOLVE <span style="color: green">✔</span></button>
       <button id="stop">STOP <span style="color: red">⊗</span></button>
-    </div>    
+    </div>
+    <div class="ortho">
+      <span>top</span>
+      <span>bottom</span>
+      <span>left</span>
+      <span>right</span>
+      <span>front</span>
+      <span>back</span>
+    </div>
     <script src="js/three.js"></script>
     <script src="js/GLTFLoader.js"></script>
     <script src="js/OrbitControls.js"></script>
