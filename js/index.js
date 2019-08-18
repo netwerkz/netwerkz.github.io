@@ -73,34 +73,36 @@ const STATE_SHUFFLE = "SHUFFLING";
 const state = {
     grid: [],
     onAxis: null,
-    t: 0.0, // infer float
+    t: 0,
     is: STATE_IDLE,
     movesQueue: [],
     countMoves: 0
 }
 
-const SOLVER_PHASE = {
-    COMPLETE: 'complete',
-    WHITE_CROSS_1: 'red white',
-    WHITE_CROSS_2: 'orange white',
-    WHITE_CROSS_3: 'green white',
-    WHITE_CROSS_4: 'blue white',
-    T_1: 'white red green',
-    T_2: 'white red blue',
-    T_3: 'white orange green',
-    T_4: 'white orange blue',
-    SECOND_LAYER_1: 'red green', // if wrong orientation, do it twice
-    SECOND_LAYER_2: 'red blue', // if wrong orientation, do it twice
-    SECOND_LAYER_3: 'orange green', // if wrong orientation, do it twice
-    SECOND_LAYER_4: 'orange blue', // if wrong orientation, do it twice
-    YELLOW_CROSS_L: 'yellow L', // may be skipped
-    YELLOW_CROSS_I: 'yellow I', // may be skipped
-    YELLOW_CROSS_X: 'yellow cross',
-    YELLOW_EDGES_1: 17, // may be skipped
-    YELLOW_EDGES_2: 18, // may be skipped
-    YELLOW_EDGES_3: 19, // may be skipped
-    YELLOW_EDGES_4: 20,
+const SOLVER_PHASE = {    
+    WHITE_CROSS_1_RED_WHITE: 0,
+    WHITE_CROSS_2_ORANGE_WHITE: 1,
+    WHITE_CROSS_3_GREEN_WHITE: 2,
+    WHITE_CROSS_BLUE_WHITE: 3,
+    T_1_WHITE_RED_GREEN: 4,
+    T_2_WHITE_RED_BLUE: 5,
+    T_3_WHITE_ORANGE_GREEN: 6,
+    T_4_WHITE_ORANGE_BLUE: 7,
+    SECOND_LAYER_1_RED_GREEN: 8, // if wrong orientation, do it twice
+    SECOND_LAYER_2_RED_BLUE: 9, // if wrong orientation, do it twice
+    SECOND_LAYER_3_ORANGE_GREEN: 10, // if wrong orientation, do it twice
+    SECOND_LAYER_4_ORANGE_BLUE: 11, // if wrong orientation, do it twice
+    YELLOW_CROSS_L: 12, // may be skipped
+    YELLOW_CROSS_I: 13, // may be skipped
+    YELLOW_CROSS_X: 14,
+    YELLOW_EDGES_1_RED_YELLOW: 15, // may be skipped
+    YELLOW_EDGES_2_GREEN_YELLOW: 16, // may be skipped
+    YELLOW_EDGES_3_ORANGE_YELLOW: 17, // may be skipped
+    YELLOW_EDGES_4_BLUE_YELLOW: 18,
+    YELLOW_CORNERS: 19,
     /// ...
+
+    COMPLETE: 'complete'
 }
 
 const clock = new THREE.Clock();
@@ -287,18 +289,18 @@ function isPieceInPlace(ref, x, y, z) {
 }
 
 function getNextPhase(ref = {}) {
-    if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1;
-    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2;
-    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3;
-    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_4;
-    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1;
-    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2;
-    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3;
-    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4;
-    if(!isPieceInPlace(ref,-1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_1;
-    if(!isPieceInPlace(ref, 1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_2;
-    if(!isPieceInPlace(ref,-1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_3;
-    if(!isPieceInPlace(ref, 1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_4;
+    if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE;
+    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2_ORANGE_WHITE;
+    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3_GREEN_WHITE;
+    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_BLUE_WHITE;
+    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1_WHITE_RED_GREEN;
+    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2_WHITE_RED_BLUE;
+    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3_WHITE_ORANGE_GREEN;
+    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4_WHITE_ORANGE_BLUE;
+    if(!isPieceInPlace(ref,-1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_1_RED_GREEN;
+    if(!isPieceInPlace(ref, 1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_2_RED_BLUE;
+    if(!isPieceInPlace(ref,-1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_3_ORANGE_GREEN;
+    if(!isPieceInPlace(ref, 1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_4_ORANGE_BLUE;
     
     // get all down facing yellow pieces, except center middle one
     const yellowCrossPieces = state.grid.filter(el => el.userData.YELLOW && el.userData.YELLOW.equals(DOWN) && ((el.dynamicPosition.x + el.dynamicPosition.z) == -1 || (el.dynamicPosition.x + el.dynamicPosition.z) == 1)) 
@@ -312,7 +314,14 @@ function getNextPhase(ref = {}) {
     // solve for yellow cross
     if(yellowCrossPieces.filter(el => el.userData.YELLOW.equals(DOWN)).length == 2) return SOLVER_PHASE.YELLOW_CROSS_X;
 
+    if(!isPieceInPlace(ref, 0, -1, 1)) return SOLVER_PHASE.YELLOW_EDGES_1_RED_YELLOW;
+    if(!isPieceInPlace(ref,-1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW;
+    if(!isPieceInPlace(ref, 0, -1,-1)) return SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW;
+    if(!isPieceInPlace(ref, 1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_4_BLUE_YELLOW;
+    
     // add more rules
+
+
 
     ref.piece = null
     // ref.rotationOk = false
@@ -333,7 +342,7 @@ function doNextMove() {
     } else if (state.is == STATE_SOLVE) {
         if (state.movesQueue.length == 0) { // pump moves onto queue if queue is empty
             switch (next) {
-                case SOLVER_PHASE.WHITE_CROSS_1: // red white
+                case SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             if(piece.dynamicPosition.z == -1) { // back
@@ -369,7 +378,7 @@ function doNextMove() {
                         }
                     }                    
                     break
-                case SOLVER_PHASE.WHITE_CROSS_2: // orange white
+                case SOLVER_PHASE.WHITE_CROSS_2_ORANGE_WHITE:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             if(piece.dynamicPosition.z == 0) { // middle
@@ -406,7 +415,7 @@ function doNextMove() {
                         }
                     }
                     break
-                case SOLVER_PHASE.WHITE_CROSS_3: // green white
+                case SOLVER_PHASE.WHITE_CROSS_3_GREEN_WHITE:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
@@ -433,7 +442,7 @@ function doNextMove() {
                         }
                     }
                     break
-                case SOLVER_PHASE.WHITE_CROSS_4: // blue white
+                case SOLVER_PHASE.WHITE_CROSS_BLUE_WHITE:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             // fix rotation
@@ -468,7 +477,7 @@ function doNextMove() {
                         }
                     }
                     break
-                case SOLVER_PHASE.T_1: // -1, 1, 1 (white red green)
+                case SOLVER_PHASE.T_1_WHITE_RED_GREEN: // -1, 1, 1
                     {
                         if(piece.dynamicPosition.y == -1) {
                             if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != -1) {
@@ -501,7 +510,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.T_2: // 1, 1, 1 (white red blue)
+                case SOLVER_PHASE.T_2_WHITE_RED_BLUE: // 1, 1, 1
                     {
                         if(piece.dynamicPosition.y == -1) {
                             if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != 1) {
@@ -534,7 +543,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.T_3: // -1, 1, -1 (white orange green)
+                case SOLVER_PHASE.T_3_WHITE_ORANGE_GREEN: // -1, 1, -1
                     {
                         if(piece.dynamicPosition.y == -1) {
                             if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != -1) {
@@ -567,7 +576,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.T_4: // 1, 1, -1 (white orange blue)
+                case SOLVER_PHASE.T_4_WHITE_ORANGE_BLUE: // 1, 1, -1
                     {
                         if(piece.dynamicPosition.y == -1) {
                             if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != 1) {
@@ -600,7 +609,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.SECOND_LAYER_1: // -1, 0, 1 (red green)
+                case SOLVER_PHASE.SECOND_LAYER_1_RED_GREEN: // -1, 0, 1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
@@ -657,7 +666,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.SECOND_LAYER_2: // 1, 0, 1 (red blue)
+                case SOLVER_PHASE.SECOND_LAYER_2_RED_BLUE: // 1, 0, 1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
@@ -714,7 +723,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.SECOND_LAYER_3: // -1, 0, -1 (orange green)
+                case SOLVER_PHASE.SECOND_LAYER_3_ORANGE_GREEN: // -1, 0, -1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
@@ -771,7 +780,7 @@ function doNextMove() {
                         }
                     }
                     break;
-                case SOLVER_PHASE.SECOND_LAYER_4: // 1, 0, -1 (orange blue)
+                case SOLVER_PHASE.SECOND_LAYER_4_ORANGE_BLUE: // 1, 0, -1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
@@ -871,6 +880,38 @@ function doNextMove() {
                             // bring in position for algo
                             rotate(BottomCW)
                         }
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_EDGES_1_RED_YELLOW: // 0, -1, 1
+                    {
+                        rotate(BottomCW)
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW: // -1, -1, 0
+                    {
+                        if(piece.dynamicPosition.x == 1) { // bring to back
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                            // rotate()
+                        } else { // bring to left
+
+                        }
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW: // 0, -1, -1
+                    {
+                        
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_EDGES_4_BLUE_YELLOW: // 1, -1, 0
+                    {
+                        
                     }
                     break;
             }
@@ -1118,7 +1159,7 @@ function init() {
         const length = 100
         gridX = makeLine(new Vector3(-length, 0, 0), new Vector3(length, 0, 0), new Vector3(1, 0, 0)) // x
         gridY = makeLine(new Vector3(0, -length, 0), new Vector3(0, length, 0), new Vector3(0, 1, 0)) // y
-        gridZ = makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0, 1)) // z
+        gridZ = makeLine(new Vector3(0, 0, -length), new Vector3(0, 0, length), new Vector3(0, 0.3, 1)) // z
 
         function makeLine(v1, v2, colorNormalized) {
             
