@@ -93,14 +93,14 @@ const SOLVER_PHASE = {
     SECOND_LAYER_2: 'red blue', // if wrong orientation, do it twice
     SECOND_LAYER_3: 'orange green', // if wrong orientation, do it twice
     SECOND_LAYER_4: 'orange blue', // if wrong orientation, do it twice
-    YELLOW_CROSS_1: 13, // may be skipped
-    YELLOW_CROSS_2: 14, // may be skipped
-    YELLOW_CROSS_3: 15, // may be skipped
-    YELLOW_CROSS_4: 16,
+    YELLOW_CROSS_L: 'yellow L', // may be skipped
+    YELLOW_CROSS_I: 'yellow I', // may be skipped
+    YELLOW_CROSS_X: 'yellow cross',
     YELLOW_EDGES_1: 17, // may be skipped
     YELLOW_EDGES_2: 18, // may be skipped
     YELLOW_EDGES_3: 19, // may be skipped
     YELLOW_EDGES_4: 20,
+    /// ...
 }
 
 const clock = new THREE.Clock();
@@ -275,8 +275,8 @@ function animate() {
 }
 
 function isPieceInPlace(ref, x, y, z) {
-    const name = `${x},${y},${z}`
-    ref.piece = state.grid.find(piece => piece.name == name)
+    const name  = `${x},${y},${z}`
+    ref.piece   = state.grid.find(piece => piece.name == name)
     const piece = ref.piece
     const isCorrectPosition         = piece.dynamicPosition.equals(piece.solvedPosition)
     const isCorrectRightOrientation = piece.userData.right.equals(RIGHT)
@@ -299,6 +299,19 @@ function getNextPhase(ref = {}) {
     if(!isPieceInPlace(ref, 1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_2;
     if(!isPieceInPlace(ref,-1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_3;
     if(!isPieceInPlace(ref, 1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_4;
+    
+    // get all down facing yellow pieces, except center middle one
+    const yellowCrossPieces = state.grid.filter(el => el.userData.YELLOW && el.userData.YELLOW.equals(DOWN) && ((el.dynamicPosition.x + el.dynamicPosition.z) == -1 || (el.dynamicPosition.x + el.dynamicPosition.z) == 1)) 
+    
+    // solve for yellow L
+    if(yellowCrossPieces.length == 0) return SOLVER_PHASE.YELLOW_CROSS_L;
+
+    // solve for yellow I
+    if(yellowCrossPieces.length == 2 && yellowCrossPieces[0].dynamicPosition.x != yellowCrossPieces[1].dynamicPosition.x && yellowCrossPieces[0].dynamicPosition.z != yellowCrossPieces[1].dynamicPosition.z) return SOLVER_PHASE.YELLOW_CROSS_I;
+
+    // solve for yellow cross
+    if(yellowCrossPieces.filter(el => el.userData.YELLOW.equals(DOWN)).length == 2) return SOLVER_PHASE.YELLOW_CROSS_X;
+
     // add more rules
 
     ref.piece = null
@@ -815,6 +828,51 @@ function doNextMove() {
                         }
                     }
                     break;
+                case SOLVER_PHASE.YELLOW_CROSS_L:
+                    {
+                        // solve for L
+                        rotate(BackCW)
+                        rotate(LeftCW)
+                        rotate(BottomCW)
+                        rotate(LeftCCW)
+                        rotate(BottomCCW)
+                        rotate(BackCCW)
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_CROSS_I:
+                    {
+                        const bottomLeft = state.grid.find(piece => piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 0 && piece.dynamicPosition.y == -1)
+                        const bottomFront = state.grid.find(piece => piece.dynamicPosition.x == 0 && piece.dynamicPosition.z == 1 && piece.dynamicPosition.y == -1)
+                        if(bottomLeft.userData.YELLOW && bottomLeft.userData.YELLOW.equals(DOWN) && bottomFront.userData.YELLOW && bottomFront.userData.YELLOW.equals(DOWN)) {
+                            // solve for I
+                            rotate(BackCW)
+                            rotate(RightCW)
+                            rotate(BottomCW)
+                            rotate(RightCCW)
+                            rotate(BottomCCW)
+                            rotate(BackCCW)
+                        } else {
+                            // bring in position for algo
+                            rotate(BottomCW)
+                        }
+                    }
+                    break;
+                case SOLVER_PHASE.YELLOW_CROSS_X:
+                    {
+                        const bottomLeft = state.grid.find(piece => piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 0 && piece.dynamicPosition.y == -1)
+                        if(bottomLeft.userData.YELLOW && bottomLeft.userData.YELLOW.equals(DOWN)) { // solve for cross
+                            rotate(BackCW)
+                            rotate(RightCW)
+                            rotate(BottomCW)
+                            rotate(RightCCW)
+                            rotate(BottomCCW)
+                            rotate(BackCCW)
+                        } else {
+                            // bring in position for algo
+                            rotate(BottomCW)
+                        }
+                    }
+                    break;
             }
         }
     }
@@ -828,14 +886,7 @@ function doNextMove() {
 }
 
 function test() {
-    rotate(BottomCCW)
-    rotate(RightCCW)
-    rotate(BottomCW)
-    rotate(RightCW)
-    rotate(BottomCW)
-    rotate(FrontCW)
-    rotate(BottomCCW)
-    rotate(FrontCCW)
+    // 
     doNextMove()
 }
 
