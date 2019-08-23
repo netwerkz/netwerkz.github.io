@@ -45,9 +45,9 @@ class Move {
      * @param {int} direction -1/+1
      */
     constructor(axis, offset, direction) {
-        this.axis = axis.clone();
-        this.offset = offset;
-        this.direction = direction;
+        this.axis = axis.clone()
+        this.offset = offset
+        this.direction = direction
         console.assert(offset == 1 || offset == -1, 'Offset value is invalid')
         console.assert(direction == 1 || direction == -1, 'Direction value is invalid')
     }
@@ -66,9 +66,9 @@ const TopCCW    = new Move(UP, 1, -1)
 const BottomCW  = new Move(UP, -1, 1)
 const BottomCCW = new Move(UP, -1, -1)
 
-const STATE_IDLE    = 'IDLE';
-const STATE_SOLVE   = 'SOLVING';
-const STATE_SHUFFLE = "SHUFFLING";
+const STATE_IDLE    = 'IDLE'
+const STATE_SOLVE   = 'SOLVING'
+const STATE_SCRAMBLE = "SCRAMBLING"
 
 const state = {
     grid: [],
@@ -76,38 +76,41 @@ const state = {
     t: 0,
     is: STATE_IDLE,
     movesQueue: [],
-    countMoves: 0
+    countMoves: 0,
+    isInFinalStep: false
 }
 
 const SOLVER_PHASE = {    
-    WHITE_CROSS_1_RED_WHITE: 0,
-    WHITE_CROSS_2_ORANGE_WHITE: 1,
-    WHITE_CROSS_3_GREEN_WHITE: 2,
-    WHITE_CROSS_BLUE_WHITE: 3,
-    T_1_WHITE_RED_GREEN: 4,
-    T_2_WHITE_RED_BLUE: 5,
-    T_3_WHITE_ORANGE_GREEN: 6,
-    T_4_WHITE_ORANGE_BLUE: 7,
-    SECOND_LAYER_1_RED_GREEN: 8, // if wrong orientation, do it twice
-    SECOND_LAYER_2_RED_BLUE: 9, // if wrong orientation, do it twice
-    SECOND_LAYER_3_ORANGE_GREEN: 10, // if wrong orientation, do it twice
-    SECOND_LAYER_4_ORANGE_BLUE: 11, // if wrong orientation, do it twice
-    YELLOW_CROSS_L: 12, // may be skipped
-    YELLOW_CROSS_I: 13, // may be skipped
-    YELLOW_CROSS_X: 14,
-    YELLOW_EDGES_1_RED_YELLOW: 15, // may be skipped
-    YELLOW_EDGES_2_GREEN_YELLOW: 16, // may be skipped
-    YELLOW_EDGES_3_ORANGE_YELLOW: 17, // may be skipped
-    YELLOW_EDGES_4_BLUE_YELLOW: 18,
-    YELLOW_CORNERS: 19,
-    /// ...
-
-    COMPLETE: 'complete'
+    WHITE_CROSS_1_RED_WHITE: 'WHITE_CROSS_1_RED_WHITE',
+    WHITE_CROSS_2_ORANGE_WHITE: 'WHITE_CROSS_2_ORANGE_WHITE',
+    WHITE_CROSS_3_GREEN_WHITE: 'WHITE_CROSS_3_GREEN_WHITE',
+    WHITE_CROSS_BLUE_WHITE: 'WHITE_CROSS_BLUE_WHITE',
+    T_1_WHITE_RED_GREEN: 'T_1_WHITE_RED_GREEN',
+    T_2_WHITE_RED_BLUE: 'T_2_WHITE_RED_BLUE',
+    T_3_WHITE_ORANGE_GREEN: 'T_3_WHITE_ORANGE_GREEN',
+    T_4_WHITE_ORANGE_BLUE: 'T_4_WHITE_ORANGE_BLUE',
+    SECOND_LAYER_1_RED_GREEN: 'SECOND_LAYER_1_RED_GREEN', // if wrong orientation, do it twice
+    SECOND_LAYER_2_RED_BLUE: 'SECOND_LAYER_2_RED_BLUE', // if wrong orientation, do it twice
+    SECOND_LAYER_3_ORANGE_GREEN: 'SECOND_LAYER_3_ORANGE_GREEN', // if wrong orientation, do it twice
+    SECOND_LAYER_4_ORANGE_BLUE: 'SECOND_LAYER_4_ORANGE_BLUE', // if wrong orientation, do it twice
+    YELLOW_CROSS_L: 'YELLOW_CROSS_L',
+    YELLOW_CROSS_I: 'YELLOW_CROSS_I',
+    YELLOW_CROSS_X: 'YELLOW_CROSS_X',
+    YELLOW_EDGES_1_RED_YELLOW: 'Y_E_1_RED_YELLOW',
+    YELLOW_EDGES_2_GREEN_YELLOW: 'Y_E_2_GREEN_YELLOW',
+    YELLOW_EDGES_3_ORANGE_YELLOW: 'Y_E_3_ORANGE_YELLOW',
+    YELLOW_CORNERS_NO_CORRECT_PIECE: 'Y_C_NO_CORRECT_PIECE',
+    YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE: 'Y_C_AT_LEAST_ONE_CORRECT_PIECE',
+    ROTATE_CORNER_BOTTOM_LEFT_FRONT: 'ROTATE_BOTTOM_LEFT_FRONT',
+    ROTATE_CORNER_BOTTOM_RIGHT_FRONT: 'ROTATE_BOTTOM_RIGHT_FRONT',
+    ROTATE_CORNER_BOTTOM_LEFT_BACK: 'ROTATE_BOTTOM_LEFT_BACK',
+    ROTATE_CORNER_BOTTOM_RIGHT_BACK: 'ROTATE_BOTTOM_RIGHT_BACK',
+    COMPLETE: 'COMPLETE'
 }
 
-const clock = new THREE.Clock();
+const clock = new THREE.Clock()
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x333333);
+scene.background = new THREE.Color(0x333333)
 
 const mainCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 0.1, 1000)
 mainCamera.position.x = 2
@@ -116,7 +119,7 @@ mainCamera.position.z = 5
 mainCamera.viewport = new Vector4(0, 0, window.innerWidth, window.innerHeight)
 mainCamera.updateMatrixWorld()
 
-const topCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const topCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 topCamera.position.x = 0
 topCamera.position.y = 3
 topCamera.position.z = 0
@@ -126,7 +129,7 @@ const cameraHelper = new THREE.CameraHelper(topCamera)
 scene.add(cameraHelper)
 scene.add(topCamera)
 
-const bottomCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const bottomCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 bottomCamera.position.x = 0
 bottomCamera.position.y = -3
 bottomCamera.position.z = 0
@@ -134,7 +137,7 @@ bottomCamera.lookAt(0, 0, 0)
 bottomCamera.updateMatrixWorld()
 scene.add(bottomCamera)
 
-const leftCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const leftCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 leftCamera.position.x = -3
 leftCamera.position.y = 0
 leftCamera.position.z = 0
@@ -142,7 +145,7 @@ leftCamera.lookAt(0, 0, 0)
 leftCamera.updateMatrixWorld()
 scene.add(leftCamera)
 
-const rightCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const rightCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 rightCamera.position.x = 3
 rightCamera.position.y = 0
 rightCamera.position.z = 0
@@ -150,7 +153,7 @@ rightCamera.lookAt(0, 0, 0)
 rightCamera.updateMatrixWorld()
 scene.add(rightCamera)
 
-const frontCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const frontCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 frontCamera.position.x = 0
 frontCamera.position.y = 0
 frontCamera.position.z = 3
@@ -158,7 +161,7 @@ frontCamera.lookAt(0, 0, 0)
 frontCamera.updateMatrixWorld()
 scene.add(frontCamera)
 
-const backCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5);
+const backCamera = new THREE.OrthographicCamera(-2, 2, 2, -2, 1, 5)
 backCamera.position.x = 0
 backCamera.position.y = 0
 backCamera.position.z = -3
@@ -181,18 +184,21 @@ container.appendChild(renderer.domElement)
 window.addEventListener('resize', onWindowResize, false)
 document.querySelector('#randomize').addEventListener('click', function (e) { 
     pushRandomMoves(10)
-    state.is = STATE_SHUFFLE
+    state.is = STATE_SCRAMBLE
+    state.isInFinalStep = false
     state.countMoves = 0
-    doNextMove()
+    doNextMove()    
 })
 document.querySelector('#solve').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
     state.is = STATE_SOLVE
+    state.isInFinalStep = false
     state.countMoves = 0
     doNextMove()
 })
 document.querySelector('#stop').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
+    state.isInFinalStep = false
     state.countMoves = 0
     state.is = STATE_IDLE
 })
@@ -289,52 +295,74 @@ function isPieceInPlace(ref, x, y, z) {
 }
 
 function getNextPhase(ref = {}) {
-    if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE;
-    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2_ORANGE_WHITE;
-    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3_GREEN_WHITE;
-    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_BLUE_WHITE;
-    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1_WHITE_RED_GREEN;
-    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2_WHITE_RED_BLUE;
-    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3_WHITE_ORANGE_GREEN;
-    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4_WHITE_ORANGE_BLUE;
-    if(!isPieceInPlace(ref,-1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_1_RED_GREEN;
-    if(!isPieceInPlace(ref, 1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_2_RED_BLUE;
-    if(!isPieceInPlace(ref,-1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_3_ORANGE_GREEN;
-    if(!isPieceInPlace(ref, 1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_4_ORANGE_BLUE;
+    ref.piece = null
+    // ref.rotationOk = false
+    if(isCubeSolved()) return SOLVER_PHASE.COMPLETE
+    if(state.isInFinalStep) return SOLVER_PHASE.FINAL_STEP
+    if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE
+    if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2_ORANGE_WHITE
+    if(!isPieceInPlace(ref,-1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_3_GREEN_WHITE
+    if(!isPieceInPlace(ref, 1, 1, 0)) return SOLVER_PHASE.WHITE_CROSS_BLUE_WHITE
+    if(!isPieceInPlace(ref,-1, 1, 1)) return SOLVER_PHASE.T_1_WHITE_RED_GREEN
+    if(!isPieceInPlace(ref, 1, 1, 1)) return SOLVER_PHASE.T_2_WHITE_RED_BLUE
+    if(!isPieceInPlace(ref,-1, 1,-1)) return SOLVER_PHASE.T_3_WHITE_ORANGE_GREEN
+    if(!isPieceInPlace(ref, 1, 1,-1)) return SOLVER_PHASE.T_4_WHITE_ORANGE_BLUE
+    if(!isPieceInPlace(ref,-1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_1_RED_GREEN
+    if(!isPieceInPlace(ref, 1, 0, 1)) return SOLVER_PHASE.SECOND_LAYER_2_RED_BLUE
+    if(!isPieceInPlace(ref,-1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_3_ORANGE_GREEN
+    if(!isPieceInPlace(ref, 1, 0,-1)) return SOLVER_PHASE.SECOND_LAYER_4_ORANGE_BLUE
     
     // get all down facing yellow pieces, except center middle one
     const yellowCrossPieces = state.grid.filter(el => el.userData.YELLOW && el.userData.YELLOW.equals(DOWN) && ((el.dynamicPosition.x + el.dynamicPosition.z) == -1 || (el.dynamicPosition.x + el.dynamicPosition.z) == 1)) 
     
     // solve for yellow L
-    if(yellowCrossPieces.length == 0) return SOLVER_PHASE.YELLOW_CROSS_L;
+    if(yellowCrossPieces.length == 0) return SOLVER_PHASE.YELLOW_CROSS_L
 
     // solve for yellow I
-    if(yellowCrossPieces.length == 2 && yellowCrossPieces[0].dynamicPosition.x != yellowCrossPieces[1].dynamicPosition.x && yellowCrossPieces[0].dynamicPosition.z != yellowCrossPieces[1].dynamicPosition.z) return SOLVER_PHASE.YELLOW_CROSS_I;
+    if(yellowCrossPieces.length == 2 && yellowCrossPieces[0].dynamicPosition.x != yellowCrossPieces[1].dynamicPosition.x && yellowCrossPieces[0].dynamicPosition.z != yellowCrossPieces[1].dynamicPosition.z) return SOLVER_PHASE.YELLOW_CROSS_I
 
     // solve for yellow cross
-    if(yellowCrossPieces.filter(el => el.userData.YELLOW.equals(DOWN)).length == 2) return SOLVER_PHASE.YELLOW_CROSS_X;
+    if(yellowCrossPieces.filter(el => el.userData.YELLOW.equals(DOWN)).length == 2) return SOLVER_PHASE.YELLOW_CROSS_X
 
-    if(!isPieceInPlace(ref, 0, -1, 1)) return SOLVER_PHASE.YELLOW_EDGES_1_RED_YELLOW;
-    if(!isPieceInPlace(ref,-1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW;
-    if(!isPieceInPlace(ref, 0, -1,-1)) return SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW;
-    if(!isPieceInPlace(ref, 1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_4_BLUE_YELLOW;
+    if(!isPieceInPlace(ref, 0, -1, 1)) return SOLVER_PHASE.YELLOW_EDGES_1_RED_YELLOW
+    if(!isPieceInPlace(ref,-1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW
+    if(!isPieceInPlace(ref, 0, -1,-1)) return SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW
+    if(!isPieceInPlace(ref, 1, -1, 0)) return SOLVER_PHASE.YELLOW_EDGES_4_BLUE_YELLOW
     
-    // add more rules
+    const leftFrontCorner = state.grid.find(el => el.dynamicPosition.x == -1 && el.dynamicPosition.z == 1 &&  el.dynamicPosition.y == -1)
+    const isFrontLeftCornerInPosition = leftFrontCorner.userData.RED && leftFrontCorner.userData.GREEN
 
+    const rightFrontCorner = state.grid.find(el => el.dynamicPosition.x == 1 && el.dynamicPosition.z == 1 &&  el.dynamicPosition.y == -1)
+    const isFrontRightCornerInPosition = rightFrontCorner.userData.RED && rightFrontCorner.userData.BLUE
 
+    const leftBackCorner = state.grid.find(el => el.dynamicPosition.x == -1 && el.dynamicPosition.z == -1 &&  el.dynamicPosition.y == -1)
+    const isBackLeftCornerInPosition = leftBackCorner.userData.ORANGE && leftBackCorner.userData.GREEN
 
-    ref.piece = null
-    // ref.rotationOk = false
-    return SOLVER_PHASE.COMPLETE;
+    const rightBackCorner = state.grid.find(el => el.dynamicPosition.x == 1 && el.dynamicPosition.z == -1 &&  el.dynamicPosition.y == -1)
+    const isBackRightCornerInPosition = rightBackCorner.userData.ORANGE && rightBackCorner.userData.BLUE
+    
+    ref.cornerBottomFrontLeft = isFrontLeftCornerInPosition
+    ref.cornerBottomFrontRight = isFrontRightCornerInPosition
+    ref.cornerBottomBackLeft = isBackLeftCornerInPosition
+    ref.cornerBottomBackRight = isBackRightCornerInPosition
+
+    if(!isFrontLeftCornerInPosition && !isFrontRightCornerInPosition && !isBackLeftCornerInPosition && !isBackRightCornerInPosition) return  SOLVER_PHASE.YELLOW_CORNERS_NO_CORRECT_PIECE
+
+    if(!isFrontLeftCornerInPosition || !isFrontRightCornerInPosition || !isBackLeftCornerInPosition || !isBackRightCornerInPosition) return  SOLVER_PHASE.YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE
+    
+    if(!isPieceInPlace(ref, -1, -1, 1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_FRONT
+    if(!isPieceInPlace(ref, 1, -1, 1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_FRONT
+    if(!isPieceInPlace(ref, -1, -1, -1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_BACK
+    if(!isPieceInPlace(ref, 1, -1, -1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_BACK
 }
 
 function doNextMove() {
-    const ref = { piece: null, rotationOk: false };
+    const ref = { piece: null, rotationOk: false }
     const next = getNextPhase(ref)
     const piece = ref.piece
 
-    if (state.is == STATE_SHUFFLE) {
-        if (state.movesQueue.length == 0) { // done shuffling
+    if (state.is == STATE_SCRAMBLE) {
+        if (state.movesQueue.length == 0) { // done scrambling
             state.is = STATE_IDLE
         }
     } else if (next == SOLVER_PHASE.COMPLETE) { // done solving
@@ -509,7 +537,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.T_2_WHITE_RED_BLUE: // 1, 1, 1
                     {
                         if(piece.dynamicPosition.y == -1) {
@@ -542,7 +570,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.T_3_WHITE_ORANGE_GREEN: // -1, 1, -1
                     {
                         if(piece.dynamicPosition.y == -1) {
@@ -575,7 +603,7 @@ function doNextMove() {
                             }                            
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.T_4_WHITE_ORANGE_BLUE: // 1, 1, -1
                     {
                         if(piece.dynamicPosition.y == -1) {
@@ -608,7 +636,7 @@ function doNextMove() {
                             }                            
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.SECOND_LAYER_1_RED_GREEN: // -1, 0, 1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
@@ -665,7 +693,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.SECOND_LAYER_2_RED_BLUE: // 1, 0, 1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
@@ -722,7 +750,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.SECOND_LAYER_3_ORANGE_GREEN: // -1, 0, -1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
@@ -779,7 +807,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.SECOND_LAYER_4_ORANGE_BLUE: // 1, 0, -1
                     {
                         if(piece.dynamicPosition.y == 0) { // middle
@@ -836,7 +864,7 @@ function doNextMove() {
                             }
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_CROSS_L:
                     {
                         // solve for L
@@ -847,7 +875,7 @@ function doNextMove() {
                         rotate(BottomCCW)
                         rotate(BackCCW)
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_CROSS_I:
                     {
                         const bottomLeft = state.grid.find(piece => piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 0 && piece.dynamicPosition.y == -1)
@@ -865,7 +893,7 @@ function doNextMove() {
                             rotate(BottomCW)
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_CROSS_X:
                     {
                         const bottomLeft = state.grid.find(piece => piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 0 && piece.dynamicPosition.y == -1)
@@ -881,54 +909,162 @@ function doNextMove() {
                             rotate(BottomCW)
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_EDGES_1_RED_YELLOW: // 0, -1, 1
                     {
                         rotate(BottomCW)
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW: // -1, -1, 0
                     {
                         if(piece.dynamicPosition.x == 1) { // bring to back
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
-                            // rotate()
+                            rotate(LeftCW)
+                            rotate(BottomCW)
+                            rotate(LeftCCW)
+                            rotate(BottomCW)
+                            rotate(LeftCW)
+                            rotate(BottomCW)
+                            rotate(BottomCW)
+                            rotate(LeftCCW)
+                            rotate(BottomCW)
                         } else { // bring to left
-
+                            rotate(RightCW)
+                            rotate(BottomCW)
+                            rotate(RightCCW)
+                            rotate(BottomCW)
+                            rotate(RightCW)
+                            rotate(BottomCW)
+                            rotate(BottomCW)
+                            rotate(RightCCW)
+                            rotate(BottomCW)
                         }
                     }
-                    break;
+                    break
                 case SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW: // 0, -1, -1
                     {
-                        
+                        rotate(LeftCW)
+                        rotate(BottomCW)
+                        rotate(LeftCCW)
+                        rotate(BottomCW)
+                        rotate(LeftCW)
+                        rotate(BottomCW)
+                        rotate(BottomCW)
+                        rotate(LeftCCW)
+                        rotate(BottomCW)
                     }
-                    break;
-                case SOLVER_PHASE.YELLOW_EDGES_4_BLUE_YELLOW: // 1, -1, 0
+                    break
+                case SOLVER_PHASE.YELLOW_CORNERS_NO_CORRECT_PIECE: // get at least one correct corner in place
+                    { 
+                        rotate(BottomCW)
+                        rotate(RightCW)
+                        rotate(BottomCCW)
+                        rotate(LeftCCW)
+                        rotate(BottomCW)
+                        rotate(RightCCW)
+                        rotate(BottomCCW)
+                        rotate(LeftCW)
+                    }
+                    break
+                case SOLVER_PHASE.YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE: // get all corners into correct place
                     {
-                        
+                        // only one check will pass:
+                        if(ref.cornerBottomFrontLeft) {
+                            rotate(BottomCW)
+                            rotate(LeftCW)
+                            rotate(BottomCCW)
+                            rotate(RightCCW)
+                            rotate(BottomCW)
+                            rotate(LeftCCW)
+                            rotate(BottomCCW)
+                            rotate(RightCW)
+                        } else if (ref.cornerBottomFrontRight) {
+                            rotate(BottomCW)
+                            rotate(FrontCW)
+                            rotate(BottomCCW)
+                            rotate(BackCCW)
+                            rotate(BottomCW)
+                            rotate(FrontCCW)
+                            rotate(BottomCCW)
+                            rotate(BackCW)
+                        } else if (ref.cornerBottomBackLeft) {                            
+                            rotate(BottomCW)
+                            rotate(BackCW)
+                            rotate(BottomCCW)
+                            rotate(FrontCCW)
+                            rotate(BottomCW)
+                            rotate(BackCCW)
+                            rotate(BottomCCW)
+                            rotate(FrontCW)
+                        } else if (ref.cornerBottomBackRight) {
+                            rotate(BottomCW)
+                            rotate(RightCW)
+                            rotate(BottomCCW)
+                            rotate(LeftCCW)
+                            rotate(BottomCW)
+                            rotate(RightCCW)
+                            rotate(BottomCCW)
+                            rotate(LeftCW)
+                        }
                     }
-                    break;
+                    break
+                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_FRONT:// break
+                //     {
+                //         rotate(LeftCCW)
+                //         rotate(TopCCW)
+                //         rotate(LeftCW)
+                //         rotate(TopCW)
+                //         rotate(LeftCCW)
+                //         rotate(TopCCW)
+                //         rotate(LeftCW)
+                //         rotate(TopCW)
+                //     }
+                //     break
+                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_FRONT:// break
+                //     {
+                //         rotate(FrontCCW)
+                //         rotate(TopCCW)
+                //         rotate(FrontCW)
+                //         rotate(TopCW)
+                //         rotate(FrontCCW)
+                //         rotate(TopCCW)
+                //         rotate(FrontCW)
+                //         rotate(TopCW)
+                //     }
+                //     break
+                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_BACK: //break
+                //     {
+                //         rotate(BackCCW)
+                //         rotate(TopCCW)
+                //         rotate(BackCW)
+                //         rotate(TopCW)
+                //         rotate(BackCCW)
+                //         rotate(TopCCW)
+                //         rotate(BackCW)
+                //         rotate(TopCW)
+                //     }
+                //     break
+                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_BACK: //break
+                //     {
+                //         rotate(RightCCW)
+                //         rotate(TopCCW)
+                //         rotate(RightCW)
+                //         rotate(TopCW)
+                //         rotate(RightCCW)
+                //         rotate(TopCCW)
+                //         rotate(RightCW)
+                //         rotate(TopCW)
+                //     }
+                //     break
             }
         }
     }
-    
+
     if(state.movesQueue.length > 0) {
         // count solve moves
         if(state.is == STATE_SOLVE) { state.countMoves++ }
         // deque next move and start it
         startRotation(state.movesQueue.shift())
     }
-}
-
-function test() {
-    // 
-    doNextMove()
 }
 
 function rotate(move) { // wrapper
@@ -977,7 +1113,7 @@ function render() {
     { // main camera
         renderer.setViewport(0, 0, window.innerWidth, window.innerHeight)
         renderer.setScissor(0, 0, window.innerWidth, window.innerHeight)
-        renderer.setScissorTest(true);
+        renderer.setScissorTest(true)
         // renderer.setClearColor( view.background )
         mainCamera.aspect = aspect
         mainCamera.updateProjectionMatrix()
@@ -1045,8 +1181,8 @@ function pushRandomMoves(num) {
 
 function init() {
     { // setup buttons    
-        const spriteMapCW = new THREE.TextureLoader().load("images/cw.png");
-        const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png");
+        const spriteMapCW = new THREE.TextureLoader().load("images/cw.png")
+        const spriteMapCCW = new THREE.TextureLoader().load("images/ccw.png")
         
         addButtons(new Vector3(3, 0, 0), 'right')
         addButtons(new Vector3(-3, 0, 0), 'left')
@@ -1054,7 +1190,7 @@ function init() {
         addButtons(new Vector3(0, -3, 0), 'bottom')
         addButtons(new Vector3(0, 0, 3), 'back')
         addButtons(new Vector3(0, 0, -3), 'front')
-        window.addEventListener("mousemove", onDocumentMouseMove, false);
+        window.addEventListener("mousemove", onDocumentMouseMove, false)
     
         function addButtons(pos, name) {
             const spriteMaterialCW = new THREE.SpriteMaterial({ map: spriteMapCW, color: 0xffffff })
@@ -1082,9 +1218,9 @@ function init() {
             scene.add(buttons)
         }
     
-        let selectedObject = null;
+        let selectedObject = null
         function onDocumentMouseMove(event) {
-            event.preventDefault();
+            event.preventDefault()
             if (selectedObject) {
                 selectedObject.material.color.set('#ffffff')
                 selectedObject = null
@@ -1092,8 +1228,8 @@ function init() {
             let intersects = getIntersects(event.layerX, event.layerY)
             if (intersects.length > 0) {
                 let res = intersects.filter(function (res) {
-                    return res && res.object;
-                })[0];
+                    return res && res.object
+                })[0]
     
                 if (res && res.object && res.object.userData.isBtn) {
                     selectedObject = res.object
@@ -1101,55 +1237,57 @@ function init() {
                 }
             }
         }
-        let raycaster = new THREE.Raycaster();
-        let mouseVector = new Vector2();
+        let raycaster = new THREE.Raycaster()
+        let mouseVector = new Vector2()
         function getIntersects(x, y) {
-            x = (x / window.innerWidth) * 2 - 1;
-            y = - (y / window.innerHeight) * 2 + 1;
-            mouseVector.set(x, y, 0.5);
-            raycaster.setFromCamera(mouseVector, mainCamera);
-            return raycaster.intersectObjects(buttons.children, true);
+            x = (x / window.innerWidth) * 2 - 1
+            y = - (y / window.innerHeight) * 2 + 1
+            mouseVector.set(x, y, 0.5)
+            raycaster.setFromCamera(mouseVector, mainCamera)
+            return raycaster.intersectObjects(buttons.children, true)
         }
     
         document.onclick = function (e) {
+            if(!debug.checked) return // disable if no debug
+
             if (selectedObject) {
                 switch (selectedObject.name) {
                     case 'right_cw':
                         startRotation(new Move(RIGHT, 1, 1))
-                        break;
+                        break
                     case 'right_ccw':
                         startRotation(new Move(RIGHT, 1, -1))
-                        break;
+                        break
                     case 'left_cw':
                         startRotation(new Move(RIGHT, -1, 1))
-                        break;
+                        break
                     case 'left_ccw':
                         startRotation(new Move(RIGHT, -1, -1))
-                        break;
+                        break
                     case 'top_cw':
                         startRotation(new Move(UP, 1, 1))
-                        break;
+                        break
                     case 'top_ccw':
                         startRotation(new Move(UP, 1, -1))
-                        break;
+                        break
                     case 'bottom_cw':
                         startRotation(new Move(UP, -1, 1))
-                        break;
+                        break
                     case 'bottom_ccw':
                         startRotation(new Move(UP, -1, -1))
-                        break;
+                        break
                     case 'front_cw':
                         startRotation(new Move(FRONT, 1, 1))
-                        break;
+                        break
                     case 'front_ccw':
                         startRotation(new Move(FRONT, 1, -1))
-                        break;
+                        break
                     case 'back_cw':
                         startRotation(new Move(FRONT, -1, 1))
-                        break;
+                        break
                     case 'back_ccw':
                         startRotation(new Move(FRONT, -1, -1))
-                        break;
+                        break
                 }
             }
         }
@@ -1175,9 +1313,9 @@ function init() {
             vertexColor.push(colorNormalized.x)
             vertexColor.push(colorNormalized.y)
             vertexColor.push(colorNormalized.z)
-            geometry.addAttribute('position', new THREE.Float32BufferAttribute(vertexPosition, 3));
-            geometry.addAttribute('color', new THREE.Float32BufferAttribute(vertexColor, 3));
-            geometry.computeBoundingSphere();
+            geometry.addAttribute('position', new THREE.Float32BufferAttribute(vertexPosition, 3))
+            geometry.addAttribute('color', new THREE.Float32BufferAttribute(vertexColor, 3))
+            geometry.computeBoundingSphere()
             const line = new THREE.Line(geometry, mat)
             scene.add(line)
             return line
@@ -1186,42 +1324,42 @@ function init() {
     
     // Lights
     {
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.9);
-        hemiLight.color.setHSL(0.6, 1, 1);
-        hemiLight.groundColor.setHSL(0.095, 1, 0.75);
-        hemiLight.position.set(0, 50, 0);
-        scene.add(hemiLight);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0xffffff, 0.9)
+        hemiLight.color.setHSL(0.6, 1, 1)
+        hemiLight.groundColor.setHSL(0.095, 1, 0.75)
+        hemiLight.position.set(0, 50, 0)
+        scene.add(hemiLight)
     
-        // const dirLight = new THREE.DirectionalLight( 0xffffff, 1 );
-        // dirLight.color.setHSL( 0.1, 1, 0.95 );
-        // dirLight.position.set( - 1, 1.75, 1 );
-        // dirLight.position.multiplyScalar( 30 );
-        // scene.add( dirLight );
-        // dirLight.castShadow = true;
-        // dirLight.shadow.mapSize.width = 2048;
-        // dirLight.shadow.mapSize.height = 2048;
-        // let d = 50;
-        // dirLight.shadow.camera.left = - d;
-        // dirLight.shadow.camera.right = d;
-        // dirLight.shadow.camera.top = d;
-        // dirLight.shadow.camera.bottom = - d;
-        // dirLight.shadow.camera.far = 3500;
-        // dirLight.shadow.bias = - 0.0001;
+        // const dirLight = new THREE.DirectionalLight( 0xffffff, 1 )
+        // dirLight.color.setHSL( 0.1, 1, 0.95 )
+        // dirLight.position.set( - 1, 1.75, 1 )
+        // dirLight.position.multiplyScalar( 30 )
+        // scene.add( dirLight )
+        // dirLight.castShadow = true
+        // dirLight.shadow.mapSize.width = 2048
+        // dirLight.shadow.mapSize.height = 2048
+        // let d = 50
+        // dirLight.shadow.camera.left = - d
+        // dirLight.shadow.camera.right = d
+        // dirLight.shadow.camera.top = d
+        // dirLight.shadow.camera.bottom = - d
+        // dirLight.shadow.camera.far = 3500
+        // dirLight.shadow.bias = - 0.0001
     }
     {
-        const intensity = 1;
-        const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
-        light.position.set(-1, 2, 4);
-        scene.add(light);
+        const intensity = 1
+        const light = new THREE.DirectionalLight(0xFFFFFF, intensity)
+        light.position.set(-1, 2, 4)
+        scene.add(light)
     }
     {
-        const intensity = 1;
-        const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
-        light.position.set(1, -2, -4);
-        scene.add(light);
+        const intensity = 1
+        const light = new THREE.DirectionalLight(0xFFFFFF, intensity)
+        light.position.set(1, -2, -4)
+        scene.add(light)
     }
     
-    var loader = new THREE.GLTFLoader();
+    var loader = new THREE.GLTFLoader()
     loader.load('models/Piece.glb', function (gltf) {
         const PieceGeometry = gltf.scene.children.find((child) => child.name == "PieceGeometry")
         // default cube configuration: white is up, red facing us

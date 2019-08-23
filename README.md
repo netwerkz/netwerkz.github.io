@@ -1,3 +1,3 @@
-# netwerkz.github.io
+All the solving rules were taken from [ruwix.com](https://ruwix.com/the-rubiks-cube/how-to-solve-the-rubiks-cube-beginners-method/)
 
-[enter](https://netwerkz.github.io)
+Try a [live demo](https://netwerkz.github.io).

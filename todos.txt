@@ -1,3 +1,4 @@
 - ease animation
 - implement solver
 - skymap
+- count time for solving
