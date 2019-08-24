@@ -78,7 +78,8 @@ const state = {
     movesQueue: [],
     countMoves: 0,
     isInFinalStep: false,
-    next: null
+    next: null,
+    timeToSolve: 0
 }
 
 const SOLVER_PHASE = {    
@@ -108,6 +109,7 @@ const SOLVER_PHASE = {
 }
 
 const clock = new THREE.Clock()
+const solveClock = new THREE.Clock()
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(0x333333)
 
@@ -194,6 +196,7 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.isInFinalStep = false
     state.countMoves = 0
     doNextMove()
+    state.timeToSolve = 0
 })
 document.querySelector('#stop').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
@@ -222,6 +225,8 @@ function startRotation(move) {
 }
 
 function animate() {
+    if (state.is == STATE_SOLVE) { state.timeToSolve += solveClock.getDelta() }
+
     const axis = state.onAxis
     let dt = clock.getDelta() * speedInputs.find(el => el.checked).value
     if (axis) {
@@ -273,7 +278,7 @@ function animate() {
     infoText += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
     infoText += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
     infoText += '<br> STEP: ' + state.next
-    infoText += '<br> Solved in ' + state.countMoves + ' moves'
+    infoText += '<br> Solved in ' + state.countMoves + ' moves, ' + state.timeToSolve.toFixed(1) + 's'
     info.innerHTML = infoText
     
     requestAnimationFrame(animate)

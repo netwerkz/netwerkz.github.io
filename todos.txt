@@ -1,3 +1,2 @@
 - ease animation
 - skymap
-- count time for solving
