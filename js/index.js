@@ -196,6 +196,7 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.isInFinalStep = false
     state.countMoves = 0
     doNextMove()
+    solveClock.start()
     state.timeToSolve = 0
 })
 document.querySelector('#stop').addEventListener('click', function (e) { 
