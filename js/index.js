@@ -77,7 +77,8 @@ const state = {
     is: STATE_IDLE,
     movesQueue: [],
     countMoves: 0,
-    isInFinalStep: false
+    isInFinalStep: false,
+    next: null
 }
 
 const SOLVER_PHASE = {    
@@ -101,10 +102,8 @@ const SOLVER_PHASE = {
     YELLOW_EDGES_3_ORANGE_YELLOW: 'Y_E_3_ORANGE_YELLOW',
     YELLOW_CORNERS_NO_CORRECT_PIECE: 'Y_C_NO_CORRECT_PIECE',
     YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE: 'Y_C_AT_LEAST_ONE_CORRECT_PIECE',
-    ROTATE_CORNER_BOTTOM_LEFT_FRONT: 'ROTATE_BOTTOM_LEFT_FRONT',
-    ROTATE_CORNER_BOTTOM_RIGHT_FRONT: 'ROTATE_BOTTOM_RIGHT_FRONT',
-    ROTATE_CORNER_BOTTOM_LEFT_BACK: 'ROTATE_BOTTOM_LEFT_BACK',
-    ROTATE_CORNER_BOTTOM_RIGHT_BACK: 'ROTATE_BOTTOM_RIGHT_BACK',
+    YELLOW_CORNERS_ALL_IN_CORRECT_PLACE: 'Y_C_ALL_IN_CORRECT_PLACE',
+    FINAL_STEP: 'FINAL_STEP',
     COMPLETE: 'COMPLETE'
 }
 
@@ -208,7 +207,6 @@ const debug = document.querySelector('#debug')
 
 function startRotation(move) {
     if (state.t) return
-    // console.log('startRotation: ', axis, offset, direction)
 
     state.onAxis = move.axis.clone()
     state.onAxis.multiplyScalar(move.offset)
@@ -274,7 +272,7 @@ function animate() {
     infoText += '<br> AXIS: ' + onAxisText
     infoText += '<br> DELTA: ' + state.t.toFixed(2) + ' s'
     infoText += '<br> QUEUED: ' + state.movesQueue.length + ' moves'
-    infoText += '<br> STEP: ' + getNextPhase()
+    infoText += '<br> STEP: ' + state.next
     infoText += '<br> Solved in ' + state.countMoves + ' moves'
     info.innerHTML = infoText
     
@@ -297,7 +295,10 @@ function isPieceInPlace(ref, x, y, z) {
 function getNextPhase(ref = {}) {
     ref.piece = null
     // ref.rotationOk = false
-    if(isCubeSolved()) return SOLVER_PHASE.COMPLETE
+    if(isCubeSolved()) {
+        state.isInFinalStep = false
+        return SOLVER_PHASE.COMPLETE
+    }
     if(state.isInFinalStep) return SOLVER_PHASE.FINAL_STEP
     if(!isPieceInPlace(ref, 0, 1, 1)) return SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE
     if(!isPieceInPlace(ref, 0, 1,-1)) return SOLVER_PHASE.WHITE_CROSS_2_ORANGE_WHITE
@@ -349,27 +350,24 @@ function getNextPhase(ref = {}) {
     if(!isFrontLeftCornerInPosition && !isFrontRightCornerInPosition && !isBackLeftCornerInPosition && !isBackRightCornerInPosition) return  SOLVER_PHASE.YELLOW_CORNERS_NO_CORRECT_PIECE
 
     if(!isFrontLeftCornerInPosition || !isFrontRightCornerInPosition || !isBackLeftCornerInPosition || !isBackRightCornerInPosition) return  SOLVER_PHASE.YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE
-    
-    if(!isPieceInPlace(ref, -1, -1, 1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_FRONT
-    if(!isPieceInPlace(ref, 1, -1, 1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_FRONT
-    if(!isPieceInPlace(ref, -1, -1, -1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_BACK
-    if(!isPieceInPlace(ref, 1, -1, -1)) return SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_BACK
+
+    if(isFrontLeftCornerInPosition && isFrontRightCornerInPosition && isBackLeftCornerInPosition && isBackRightCornerInPosition) return  SOLVER_PHASE.YELLOW_CORNERS_ALL_IN_CORRECT_PLACE
 }
 
 function doNextMove() {
     const ref = { piece: null, rotationOk: false }
-    const next = getNextPhase(ref)
+    state.next = getNextPhase(ref)
     const piece = ref.piece
 
     if (state.is == STATE_SCRAMBLE) {
         if (state.movesQueue.length == 0) { // done scrambling
             state.is = STATE_IDLE
         }
-    } else if (next == SOLVER_PHASE.COMPLETE) { // done solving
+    } else if (state.next == SOLVER_PHASE.COMPLETE) { // done solving
         state.is = STATE_IDLE
     } else if (state.is == STATE_SOLVE) {
         if (state.movesQueue.length == 0) { // pump moves onto queue if queue is empty
-            switch (next) {
+            switch (state.next) {
                 case SOLVER_PHASE.WHITE_CROSS_1_RED_WHITE:
                     {
                         if(piece.dynamicPosition.y == 1) { // top
@@ -1004,57 +1002,92 @@ function doNextMove() {
                             rotate(RightCCW)
                             rotate(BottomCCW)
                             rotate(LeftCW)
-                        }
+                        }                        
                     }
                     break
-                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_FRONT:// break
-                //     {
-                //         rotate(LeftCCW)
-                //         rotate(TopCCW)
-                //         rotate(LeftCW)
-                //         rotate(TopCW)
-                //         rotate(LeftCCW)
-                //         rotate(TopCCW)
-                //         rotate(LeftCW)
-                //         rotate(TopCW)
-                //     }
-                //     break
-                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_FRONT:// break
-                //     {
-                //         rotate(FrontCCW)
-                //         rotate(TopCCW)
-                //         rotate(FrontCW)
-                //         rotate(TopCW)
-                //         rotate(FrontCCW)
-                //         rotate(TopCCW)
-                //         rotate(FrontCW)
-                //         rotate(TopCW)
-                //     }
-                //     break
-                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_LEFT_BACK: //break
-                //     {
-                //         rotate(BackCCW)
-                //         rotate(TopCCW)
-                //         rotate(BackCW)
-                //         rotate(TopCW)
-                //         rotate(BackCCW)
-                //         rotate(TopCCW)
-                //         rotate(BackCW)
-                //         rotate(TopCW)
-                //     }
-                //     break
-                // case SOLVER_PHASE.ROTATE_CORNER_BOTTOM_RIGHT_BACK: //break
-                //     {
-                //         rotate(RightCCW)
-                //         rotate(TopCCW)
-                //         rotate(RightCW)
-                //         rotate(TopCW)
-                //         rotate(RightCCW)
-                //         rotate(TopCCW)
-                //         rotate(RightCW)
-                //         rotate(TopCW)
-                //     }
-                //     break
+                case SOLVER_PHASE.YELLOW_CORNERS_ALL_IN_CORRECT_PLACE:
+                    state.isInFinalStep = true
+                case SOLVER_PHASE.FINAL_STEP:
+                    {
+                        // detect which corner we need to rotate and how many times
+                        let frontLeftTimes = 0
+                        let frontRightTimes = 0
+                        let backLeftTimes = 0
+                        let backRightTimes = 0
+                        
+                        const frontLeftPiece = state.grid.find(piece => piece.name == '-1,-1,1')
+                        if(frontLeftPiece.userData.YELLOW.equals(BACK)) {
+                            frontLeftTimes = 4
+                        } else if (frontLeftPiece.userData.YELLOW.equals(LEFT)) {
+                            frontLeftTimes = 2
+                        }
+
+                        const frontRightPiece = state.grid.find(piece => piece.name == '1,-1,1')
+                        if(frontRightPiece.userData.YELLOW.equals(RIGHT)) {
+                            frontRightTimes = 4
+                        } else if (frontRightPiece.userData.YELLOW.equals(BACK)) {
+                            frontRightTimes = 2
+                        }
+
+                        const leftBackPiece = state.grid.find(piece => piece.name == '-1,-1,-1')
+                        if(leftBackPiece.userData.YELLOW.equals(LEFT)) {
+                            backLeftTimes = 4
+                        } else if (leftBackPiece.userData.YELLOW.equals(FRONT)) {
+                            backLeftTimes = 2
+                        }
+
+                        const rightBackPiece = state.grid.find(piece => piece.name == '1,-1,-1')
+                        if(rightBackPiece.userData.YELLOW.equals(FRONT)) {
+                            backRightTimes = 4
+                        } else if (rightBackPiece.userData.YELLOW.equals(RIGHT)) {
+                            backRightTimes = 2
+                        }
+
+                        // rotate the front left corner for how many times we need to
+                        for(let i = 0; i < frontLeftTimes; i++) {
+                            rotate(LeftCCW)
+                            rotate(TopCCW)
+                            rotate(LeftCW)
+                            rotate(TopCW)                            
+                        }
+
+                        // bring left back corner in place and repeat
+                        rotate(BottomCW)
+
+                        // rotate the corner for how many times we need to
+                        for(let i = 0; i < backLeftTimes; i++) {
+                            rotate(LeftCCW)
+                            rotate(TopCCW)
+                            rotate(LeftCW)
+                            rotate(TopCW)
+                        }
+
+                        // bring back right corner in place and repeat
+                        rotate(BottomCW) 
+
+                        // rotate the back right corner for how many times we need to
+                        for(let i = 0; i < backRightTimes; i++) {
+                            rotate(LeftCCW)
+                            rotate(TopCCW)
+                            rotate(LeftCW)
+                            rotate(TopCW)
+                        }
+
+                        // bring front right corner in place and repeat 
+                        rotate(BottomCW)
+
+                        // rotate the corner for how many times we need to
+                        for(let i = 0; i < frontRightTimes; i++) {
+                            rotate(LeftCCW)
+                            rotate(TopCCW)
+                            rotate(LeftCW)
+                            rotate(TopCW)
+                        }
+
+                        // fix final bottom rotation
+                        rotate(BottomCW)
+                    }
+                    break
             }
         }
     }
