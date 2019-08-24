@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-146428749-1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'UA-146428749-1');
+    </script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
@@ -66,7 +76,7 @@
           <label for="100x">100x<input type="radio" id="100x" name="speed" value="100" _checked="checked"></label>
       </div>
       <label for="debug"><input type="checkbox" name="debug" id="debug" _checked="checked">Show debug info</label>
-      <button id="randomize">SHUFFLE <span style="color: blue">✘</span></button>
+      <button id="randomize">SCRAMBLE <span style="color: blue">✘</span></button>
       <button id="solve">SOLVE <span style="color: green">✔</span></button>
       <button id="stop">STOP <span style="color: red">⊗</span></button>
     </div>
