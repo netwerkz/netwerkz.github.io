@@ -195,9 +195,9 @@ document.querySelector('#solve').addEventListener('click', function (e) {
     state.is = STATE_SOLVE
     state.isInFinalStep = false
     state.countMoves = 0
-    doNextMove()
-    solveClock.start()
     state.timeToSolve = 0
+    solveClock.start()    
+    doNextMove()
 })
 document.querySelector('#stop').addEventListener('click', function (e) { 
     state.movesQueue = [] // reset queue
