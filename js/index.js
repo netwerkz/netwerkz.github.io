@@ -225,6 +225,20 @@ function startRotation(move) {
     audio.play()
 }
 
+function testRotation(normalized) {
+    const axis = RIGHT
+    const angle = TURN * normalized
+
+    for (const piece of state.grid) {
+        if ((axis.x && piece.positionBeforeAnimation.x == axis.x) ||
+            (axis.y && piece.positionBeforeAnimation.y == axis.y) ||
+            (axis.z && piece.positionBeforeAnimation.z == axis.z)) {
+            piece.setRotationFromAxisAngle(axis, angle)
+            // piece.dynamicPosition.applyAxisAngle(axis, TURN * dt * -state.direction)
+        }
+    }
+}
+
 function animate() {
     if (state.is == STATE_SOLVE) { state.timeToSolve += solveClock.getDelta() }
 
@@ -389,9 +403,7 @@ function doNextMove() {
                                 if(piece.userData.RED.equals(FRONT)) {
                                     rotate(new Move(FRONT, -1, -piece.dynamicPosition.x))
                                 } else {
-                                    rotate(new Move(FRONT, -1, piece.dynamicPosition.x))
-                                    rotate(BottomCW)
-                                    rotate(RightCW)
+                                    rotate(new Move(FRONT, -1, piece.dynamicPosition.x), BottomCW, RightCW)
                                 }
                             } else {
                                 rotate(new Move(RIGHT, piece.dynamicPosition.x, 1))
@@ -416,11 +428,7 @@ function doNextMove() {
                             if(piece.dynamicPosition.z == 0) { // middle
                                 rotate(new Move(RIGHT, piece.dynamicPosition.x, piece.dynamicPosition.x))
                             } else if(!ref.rotationOk) { // fix rotation
-                                rotate(BackCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BackCCW)
+                                rotate(BackCW, BackCW, BottomCW, LeftCW, BackCCW)
                             }
                         } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.z == -1) { // back
@@ -437,12 +445,9 @@ function doNextMove() {
                             if(piece.dynamicPosition.z != -1) { // bring to back
                                 rotate(BottomCW)
                             } else if (!piece.userData.ORANGE.equals(BACK)) { // fix rotation
-                                rotate(BackCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
+                                rotate(BackCW, RightCW, BottomCW)
                             } else { // bring up
-                                rotate(BackCW)
-                                rotate(BackCW)
+                                rotate(BackCW, BackCW)
                             }
                         }
                     }
@@ -460,16 +465,11 @@ function doNextMove() {
                             }                            
                         } else { // bottom
                             if(piece.userData.GREEN.equals(LEFT)) { // bring to top
-                                rotate(LeftCW)
-                                rotate(LeftCW)
+                                rotate(LeftCW, LeftCW)
                             } else if(piece.dynamicPosition.x ==  1) { // bring to left
-                                rotate(BottomCW)
-                                rotate(BottomCW)
+                                rotate(BottomCW, BottomCW)
                             } else { // fix rotation
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(LeftCCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, FrontCW, LeftCCW, FrontCW)
                             }
                         }
                     }
@@ -478,12 +478,7 @@ function doNextMove() {
                     {
                         if(piece.dynamicPosition.y == 1) { // top
                             // fix rotation
-                            rotate(RightCW)
-                            rotate(RightCW)
-                            rotate(BottomCCW)
-                            rotate(FrontCCW)
-                            rotate(RightCW)
-                            rotate(FrontCW)
+                            rotate(RightCW, RightCW, BottomCCW, FrontCCW, RightCW, FrontCW)
                         } else if (piece.dynamicPosition.y == 0) { // middle
                             if(piece.dynamicPosition.x == -1) { // bring down
                                 rotate(new Move(RIGHT, -1, piece.dynamicPosition.z))
@@ -501,10 +496,7 @@ function doNextMove() {
                             } else if(piece.userData.BLUE.equals(RIGHT)) { // bring up
                                 rotate(RightCW)
                             } else { // fix rotation
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(RightCW)
-                                rotate(FrontCW)
+                                rotate(BottomCCW, FrontCCW, RightCW, FrontCW)
                             }
                         }
                     }
@@ -515,29 +507,17 @@ function doNextMove() {
                             if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != -1) {
                                 rotate(BottomCW) // bring under correct position
                             } else { // bring up in correct position
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW)
                             }
                         } else {
                             if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
-                                rotate(RightCCW)
-                                rotate(BottomCCW)
-                                rotate(RightCW)
+                                rotate(RightCCW, BottomCCW, RightCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCW)
+                                rotate(LeftCCW, BottomCCW, LeftCW)
                             } else { // fix rotation
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW)
                             }
                         }
                     }
@@ -548,29 +528,17 @@ function doNextMove() {
                             if(piece.dynamicPosition.z != 1 || piece.dynamicPosition.x != 1) {
                                 rotate(BottomCW) // bring under correct position
                             } else { // bring up in correct position
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW)
                             }
                         } else {
                             if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
-                                rotate(LeftCW)
-                                rotate(BottomCW)
-                                rotate(LeftCCW)
+                                rotate(LeftCW, BottomCW, LeftCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCW)
+                                rotate(LeftCCW, BottomCCW, LeftCW)
                             } else { // fix rotation
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW)
                             }
                         }
                     }
@@ -581,29 +549,17 @@ function doNextMove() {
                             if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != -1) {
                                 rotate(BottomCW) // bring under correct position
                             } else { // bring up in correct position
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCCW, LeftCCW, BottomCW, LeftCW)
                             }
                         } else {
                             if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
-                                rotate(LeftCW)
-                                rotate(BottomCW)
-                                rotate(LeftCCW)
+                                rotate(LeftCW, BottomCW, LeftCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(1, 1, -1))) { // top back right
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
-                                rotate(RightCCW)
-                                rotate(BottomCCW)
-                                rotate(RightCW)
+                                rotate(RightCCW, BottomCCW, RightCW)
                             } else { // fix rotation
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCCW, LeftCCW, BottomCW, LeftCW)
                             }                            
                         }
                     }
@@ -614,29 +570,17 @@ function doNextMove() {
                             if(piece.dynamicPosition.z != -1 || piece.dynamicPosition.x != 1) {
                                 rotate(BottomCW) // bring under correct position
                             } else { // bring up in correct position
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCW, RightCW, BottomCCW, RightCCW)
                             }
                         } else { 
                             if(piece.dynamicPosition.equals(new Vector3(-1, 1, -1))) { // top back left
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCW)
+                                rotate(LeftCCW, BottomCCW, LeftCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(-1, 1, 1))) { // top front left
-                                rotate(LeftCW)
-                                rotate(BottomCW)
-                                rotate(LeftCCW)
+                                rotate(LeftCW, BottomCW, LeftCCW)
                             } else if(piece.dynamicPosition.equals(new Vector3(1, 1, 1))) { // top front right
-                                rotate(RightCCW)
-                                rotate(BottomCCW)
-                                rotate(RightCW)
+                                rotate(RightCCW, BottomCCW, RightCW)
                             } else { // fix rotation
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCW, RightCW, BottomCCW, RightCCW)
                             }                            
                         }
                     }
@@ -646,54 +590,19 @@ function doNextMove() {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
                             if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == -1) { // left back. bring down
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCW, BackCW, BottomCCW, BackCCW, BottomCCW, LeftCCW, BottomCW, LeftCW)
                             } else if(piece.dynamicPosition.x == 1 && piece.dynamicPosition.z == -1) { // right back. bring down
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCCW, BackCCW, BottomCW, BackCW, BottomCW, RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 1) { // left front. bring down
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW, BottomCCW, FrontCCW, BottomCW, FrontCW)
                             } else { // right front. bring down
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW, BottomCW, FrontCW, BottomCCW, FrontCCW)
                             }
                         } else { // bottom
                             if(piece.dynamicPosition.z != 1) {
                                 rotate(BottomCW)
                             } else { // left front. bring down
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW, BottomCCW, FrontCCW, BottomCW, FrontCW)
                             }
                         }
                     }
@@ -703,54 +612,19 @@ function doNextMove() {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
                             if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == -1) { // left back. bring down
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCW, BackCW, BottomCCW, BackCCW, BottomCCW, LeftCCW, BottomCW, LeftCW)
                             } else if(piece.dynamicPosition.x == 1 && piece.dynamicPosition.z == -1) { // right back. bring down
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCCW, BackCCW, BottomCW, BackCW, BottomCW, RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 1) { // left front. bring down
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW, BottomCCW, FrontCCW, BottomCW, FrontCW)
                             } else { // right front. bring down
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW, BottomCW, FrontCW, BottomCCW, FrontCCW)
                             }
                         } else { // bottom
                             if(piece.dynamicPosition.z != 1) {
                                 rotate(BottomCW)
                             } else { // right front. bring down
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW, BottomCW, FrontCW, BottomCCW, FrontCCW)
                             }
                         }
                     }
@@ -760,54 +634,19 @@ function doNextMove() {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
                             if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == -1) { // left back. bring down
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCW, BackCW, BottomCCW, BackCCW, BottomCCW, LeftCCW, BottomCW, LeftCW)
                             } else if(piece.dynamicPosition.x == 1 && piece.dynamicPosition.z == -1) { // right back. bring down
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCCW, BackCCW, BottomCW, BackCW, BottomCW, RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 1) { // left front. bring down
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW, BottomCCW, FrontCCW, BottomCW, FrontCW)
                             } else { // right front. bring down
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW, BottomCW, FrontCW, BottomCCW, FrontCCW)
                             }
                         } else { // bottom
                             if(piece.dynamicPosition.x != -1) {
                                 rotate(BottomCW)
                             } else { // right front. bring down
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCW, BackCW, BottomCCW, BackCCW, BottomCCW, LeftCCW, BottomCW, LeftCW)
                             }
                         }
                     }
@@ -817,54 +656,19 @@ function doNextMove() {
                         if(piece.dynamicPosition.y == 0) { // middle
                             // bring to bottom
                             if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == -1) { // left back. bring down
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCW)
-                                rotate(LeftCW)
+                                rotate(BottomCW, BackCW, BottomCCW, BackCCW, BottomCCW, LeftCCW, BottomCW, LeftCW)
                             } else if(piece.dynamicPosition.x == 1 && piece.dynamicPosition.z == -1) { // right back. bring down
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCCW, BackCCW, BottomCW, BackCW, BottomCW, RightCW, BottomCCW, RightCCW)
                             } else if(piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 1) { // left front. bring down
-                                rotate(BottomCW)
-                                rotate(LeftCW)
-                                rotate(BottomCCW)
-                                rotate(LeftCCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
+                                rotate(BottomCW, LeftCW, BottomCCW, LeftCCW, BottomCCW, FrontCCW, BottomCW, FrontCW)
                             } else { // right front. bring down
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCW)
-                                rotate(FrontCW)
-                                rotate(BottomCCW)
-                                rotate(FrontCCW)
+                                rotate(BottomCCW, RightCCW, BottomCW, RightCW, BottomCW, FrontCW, BottomCCW, FrontCCW)
                             }
                         } else { // bottom
                             if(piece.dynamicPosition.x != 1) {
                                 rotate(BottomCW)
                             } else { // back front. bring down
-                                rotate(BottomCCW)
-                                rotate(BackCCW)
-                                rotate(BottomCW)
-                                rotate(BackCW)
-                                rotate(BottomCW)
-                                rotate(RightCW)
-                                rotate(BottomCCW)
-                                rotate(RightCCW)
+                                rotate(BottomCCW, BackCCW, BottomCW, BackCW, BottomCW, RightCW, BottomCCW, RightCCW)
                             }
                         }
                     }
@@ -872,12 +676,7 @@ function doNextMove() {
                 case SOLVER_PHASE.YELLOW_CROSS_L:
                     {
                         // solve for L
-                        rotate(BackCW)
-                        rotate(LeftCW)
-                        rotate(BottomCW)
-                        rotate(LeftCCW)
-                        rotate(BottomCCW)
-                        rotate(BackCCW)
+                        rotate(BackCW, LeftCW, BottomCW, LeftCCW, BottomCCW, BackCCW)
                     }
                     break
                 case SOLVER_PHASE.YELLOW_CROSS_I:
@@ -886,12 +685,7 @@ function doNextMove() {
                         const bottomFront = state.grid.find(piece => piece.dynamicPosition.x == 0 && piece.dynamicPosition.z == 1 && piece.dynamicPosition.y == -1)
                         if(bottomLeft.userData.YELLOW && bottomLeft.userData.YELLOW.equals(DOWN) && bottomFront.userData.YELLOW && bottomFront.userData.YELLOW.equals(DOWN)) {
                             // solve for I
-                            rotate(BackCW)
-                            rotate(RightCW)
-                            rotate(BottomCW)
-                            rotate(RightCCW)
-                            rotate(BottomCCW)
-                            rotate(BackCCW)
+                            rotate(BackCW, RightCW, BottomCW, RightCCW, BottomCCW, BackCCW)
                         } else {
                             // bring in position for algo
                             rotate(BottomCW)
@@ -902,12 +696,7 @@ function doNextMove() {
                     {
                         const bottomLeft = state.grid.find(piece => piece.dynamicPosition.x == -1 && piece.dynamicPosition.z == 0 && piece.dynamicPosition.y == -1)
                         if(bottomLeft.userData.YELLOW && bottomLeft.userData.YELLOW.equals(DOWN)) { // solve for cross
-                            rotate(BackCW)
-                            rotate(RightCW)
-                            rotate(BottomCW)
-                            rotate(RightCCW)
-                            rotate(BottomCCW)
-                            rotate(BackCCW)
+                            rotate(BackCW, RightCW, BottomCW, RightCCW, BottomCCW, BackCCW)
                         } else {
                             // bring in position for algo
                             rotate(BottomCW)
@@ -922,92 +711,33 @@ function doNextMove() {
                 case SOLVER_PHASE.YELLOW_EDGES_2_GREEN_YELLOW: // -1, -1, 0
                     {
                         if(piece.dynamicPosition.x == 1) { // bring to back
-                            rotate(LeftCW)
-                            rotate(BottomCW)
-                            rotate(LeftCCW)
-                            rotate(BottomCW)
-                            rotate(LeftCW)
-                            rotate(BottomCW)
-                            rotate(BottomCW)
-                            rotate(LeftCCW)
-                            rotate(BottomCW)
+                            rotate(LeftCW, BottomCW, LeftCCW, BottomCW, LeftCW, BottomCW, BottomCW, LeftCCW, BottomCW)
                         } else { // bring to left
-                            rotate(RightCW)
-                            rotate(BottomCW)
-                            rotate(RightCCW)
-                            rotate(BottomCW)
-                            rotate(RightCW)
-                            rotate(BottomCW)
-                            rotate(BottomCW)
-                            rotate(RightCCW)
-                            rotate(BottomCW)
+                            rotate(RightCW, BottomCW, RightCCW, BottomCW, RightCW, BottomCW, BottomCW, RightCCW, BottomCW)
                         }
                     }
                     break
                 case SOLVER_PHASE.YELLOW_EDGES_3_ORANGE_YELLOW: // 0, -1, -1
                     {
-                        rotate(LeftCW)
-                        rotate(BottomCW)
-                        rotate(LeftCCW)
-                        rotate(BottomCW)
-                        rotate(LeftCW)
-                        rotate(BottomCW)
-                        rotate(BottomCW)
-                        rotate(LeftCCW)
-                        rotate(BottomCW)
+                        rotate(LeftCW, BottomCW, LeftCCW, BottomCW, LeftCW, BottomCW, BottomCW, LeftCCW, BottomCW)
                     }
                     break
                 case SOLVER_PHASE.YELLOW_CORNERS_NO_CORRECT_PIECE: // get at least one correct corner in place
                     { 
-                        rotate(BottomCW)
-                        rotate(RightCW)
-                        rotate(BottomCCW)
-                        rotate(LeftCCW)
-                        rotate(BottomCW)
-                        rotate(RightCCW)
-                        rotate(BottomCCW)
-                        rotate(LeftCW)
+                        rotate(BottomCW, RightCW, BottomCCW, LeftCCW, BottomCW, RightCCW, BottomCCW, LeftCW)
                     }
                     break
                 case SOLVER_PHASE.YELLOW_CORNERS_AT_LEAST_ONE_CORRECT_PIECE: // get all corners into correct place
                     {
                         // only one check will pass:
                         if(ref.cornerBottomFrontLeft) {
-                            rotate(BottomCW)
-                            rotate(LeftCW)
-                            rotate(BottomCCW)
-                            rotate(RightCCW)
-                            rotate(BottomCW)
-                            rotate(LeftCCW)
-                            rotate(BottomCCW)
-                            rotate(RightCW)
+                            rotate(BottomCW, LeftCW, BottomCCW, RightCCW, BottomCW, LeftCCW, BottomCCW, RightCW)
                         } else if (ref.cornerBottomFrontRight) {
-                            rotate(BottomCW)
-                            rotate(FrontCW)
-                            rotate(BottomCCW)
-                            rotate(BackCCW)
-                            rotate(BottomCW)
-                            rotate(FrontCCW)
-                            rotate(BottomCCW)
-                            rotate(BackCW)
+                            rotate(BottomCW, FrontCW, BottomCCW, BackCCW, BottomCW, FrontCCW, BottomCCW, BackCW)
                         } else if (ref.cornerBottomBackLeft) {                            
-                            rotate(BottomCW)
-                            rotate(BackCW)
-                            rotate(BottomCCW)
-                            rotate(FrontCCW)
-                            rotate(BottomCW)
-                            rotate(BackCCW)
-                            rotate(BottomCCW)
-                            rotate(FrontCW)
+                            rotate(BottomCW, BackCW, BottomCCW, FrontCCW, BottomCW, BackCCW, BottomCCW, FrontCW)
                         } else if (ref.cornerBottomBackRight) {
-                            rotate(BottomCW)
-                            rotate(RightCW)
-                            rotate(BottomCCW)
-                            rotate(LeftCCW)
-                            rotate(BottomCW)
-                            rotate(RightCCW)
-                            rotate(BottomCCW)
-                            rotate(LeftCW)
+                            rotate(BottomCW, RightCW, BottomCCW, LeftCCW, BottomCW, RightCCW, BottomCCW, LeftCW)
                         }                        
                     }
                     break
@@ -1051,10 +781,7 @@ function doNextMove() {
 
                         // rotate the front left corner for how many times we need to
                         for(let i = 0; i < frontLeftTimes; i++) {
-                            rotate(LeftCCW)
-                            rotate(TopCCW)
-                            rotate(LeftCW)
-                            rotate(TopCW)                            
+                            rotate(LeftCCW, TopCCW, LeftCW, TopCW)
                         }
 
                         // bring left back corner in place and repeat
@@ -1062,10 +789,7 @@ function doNextMove() {
 
                         // rotate the corner for how many times we need to
                         for(let i = 0; i < backLeftTimes; i++) {
-                            rotate(LeftCCW)
-                            rotate(TopCCW)
-                            rotate(LeftCW)
-                            rotate(TopCW)
+                            rotate(LeftCCW, TopCCW, LeftCW, TopCW)
                         }
 
                         // bring back right corner in place and repeat
@@ -1073,10 +797,7 @@ function doNextMove() {
 
                         // rotate the back right corner for how many times we need to
                         for(let i = 0; i < backRightTimes; i++) {
-                            rotate(LeftCCW)
-                            rotate(TopCCW)
-                            rotate(LeftCW)
-                            rotate(TopCW)
+                            rotate(LeftCCW, TopCCW, LeftCW, TopCW)
                         }
 
                         // bring front right corner in place and repeat 
@@ -1084,10 +805,7 @@ function doNextMove() {
 
                         // rotate the corner for how many times we need to
                         for(let i = 0; i < frontRightTimes; i++) {
-                            rotate(LeftCCW)
-                            rotate(TopCCW)
-                            rotate(LeftCW)
-                            rotate(TopCW)
+                            rotate(LeftCCW, TopCCW, LeftCW, TopCW)
                         }
 
                         // fix final bottom rotation
@@ -1106,8 +824,8 @@ function doNextMove() {
     }
 }
 
-function rotate(move) { // wrapper
-    state.movesQueue.push(move)
+function rotate(...moves) { // wrapper
+    state.movesQueue = state.movesQueue.concat(moves)
 }
 
 function isCubeSolved() {
@@ -1140,7 +858,7 @@ function onWindowResize() {
 function render() {
     const aspect = window.innerWidth / window.innerHeight
     const PADDING = 10
-    const ORTHO_SIZE = 150
+    const PANEL_SIZE = 150
 
     gridX.visible = debug.checked
     gridY.visible = debug.checked
@@ -1153,7 +871,6 @@ function render() {
         renderer.setViewport(0, 0, window.innerWidth, window.innerHeight)
         renderer.setScissor(0, 0, window.innerWidth, window.innerHeight)
         renderer.setScissorTest(true)
-        // renderer.setClearColor( view.background )
         mainCamera.aspect = aspect
         mainCamera.updateProjectionMatrix()
         renderer.render(scene, mainCamera)
@@ -1162,48 +879,48 @@ function render() {
     // hide camera helper
     cameraHelper.visible = false
     { // ortho camera top
-        renderer.setViewport(PADDING, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(PADDING, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PADDING, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PADDING, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         topCamera.aspect = aspect
         topCamera.updateProjectionMatrix()
         renderer.render(scene, topCamera)
 
         // ortho camera bottom
-        renderer.setViewport(ORTHO_SIZE + PADDING * 2, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(ORTHO_SIZE + PADDING * 2, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PANEL_SIZE + PADDING * 2, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PANEL_SIZE + PADDING * 2, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         bottomCamera.aspect = aspect
         bottomCamera.updateProjectionMatrix()
         renderer.render(scene, bottomCamera)
 
         // ortho camera left
-        renderer.setViewport(ORTHO_SIZE * 2 + PADDING * 3, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(ORTHO_SIZE * 2 + PADDING * 3, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PANEL_SIZE * 2 + PADDING * 3, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PANEL_SIZE * 2 + PADDING * 3, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         leftCamera.aspect = aspect
         leftCamera.updateProjectionMatrix()
         renderer.render(scene, leftCamera)
 
         // ortho camera right
-        renderer.setViewport(ORTHO_SIZE * 3 + PADDING * 4, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(ORTHO_SIZE * 3 + PADDING * 4, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PANEL_SIZE * 3 + PADDING * 4, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PANEL_SIZE * 3 + PADDING * 4, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         rightCamera.aspect = aspect
         rightCamera.updateProjectionMatrix()
         renderer.render(scene, rightCamera)
 
         // ortho camera front
-        renderer.setViewport(ORTHO_SIZE * 4 + PADDING * 5, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(ORTHO_SIZE * 4 + PADDING * 5, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PANEL_SIZE * 4 + PADDING * 5, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PANEL_SIZE * 4 + PADDING * 5, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         frontCamera.aspect = aspect
         frontCamera.updateProjectionMatrix()
         renderer.render(scene, frontCamera)
 
         // ortho camera back
-        renderer.setViewport(ORTHO_SIZE * 5 + PADDING * 6, window.innerHeight - ORTHO_SIZE - PADDING , ORTHO_SIZE, ORTHO_SIZE)
-        renderer.setScissor(ORTHO_SIZE * 5 + PADDING * 6, window.innerHeight - ORTHO_SIZE - PADDING, ORTHO_SIZE, ORTHO_SIZE)
+        renderer.setViewport(PANEL_SIZE * 5 + PADDING * 6, window.innerHeight - PANEL_SIZE - PADDING , PANEL_SIZE, PANEL_SIZE)
+        renderer.setScissor(PANEL_SIZE * 5 + PADDING * 6, window.innerHeight - PANEL_SIZE - PADDING, PANEL_SIZE, PANEL_SIZE)
         renderer.setScissorTest(true)
         backCamera.aspect = aspect
         backCamera.updateProjectionMatrix()
